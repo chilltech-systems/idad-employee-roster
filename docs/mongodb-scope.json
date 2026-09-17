@@ -1,0 +1,229 @@
+{
+  "status": "executed-and-verified-2026-09-10",
+  "clusterHost": "cluster0.6q6b2.mongodb.net",
+  "atlasProjectId": "66cf444a79bdc238fcb3b58b",
+  "database": "employee_directory_test",
+  "initialState": "Read-only listCollections returned an empty list on 2026-09-10",
+  "runtimeRole": {
+    "roleName": "idad_employee_directory_test_runtime",
+    "actions": [
+      {
+        "action": "LIST_COLLECTIONS",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": ""
+          }
+        ]
+      },
+      {
+        "action": "FIND",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employees"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_audit"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_sync"
+          }
+        ]
+      },
+      {
+        "action": "INSERT",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employees"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_audit"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_sync"
+          }
+        ]
+      },
+      {
+        "action": "UPDATE",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employees"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_sync"
+          }
+        ]
+      },
+      {
+        "action": "REMOVE",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          }
+        ]
+      }
+    ],
+    "inheritedRoles": []
+  },
+  "setupRole": {
+    "roleName": "idad_employee_directory_test_setup",
+    "actions": [
+      {
+        "action": "LIST_COLLECTIONS",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": ""
+          }
+        ]
+      },
+      {
+        "action": "FIND",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employees"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_audit"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_sync"
+          }
+        ]
+      },
+      {
+        "action": "INSERT",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employees"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_audit"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_sync"
+          }
+        ]
+      },
+      {
+        "action": "UPDATE",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employees"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_sync"
+          }
+        ]
+      },
+      {
+        "action": "CREATE_COLLECTION",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employees"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_audit"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_sync"
+          }
+        ]
+      },
+      {
+        "action": "CREATE_INDEX",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employees"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_audit"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          },
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_sync"
+          }
+        ]
+      },
+      {
+        "action": "REMOVE",
+        "resources": [
+          {
+            "db": "employee_directory_test",
+            "collection": "employee_directory_access"
+          }
+        ]
+      }
+    ],
+    "inheritedRoles": []
+  },
+  "runtimeUser": "idad_employee_directory_test_app",
+  "setupUser": "idad_employee_directory_test_setup",
+  "constraints": [
+    "Resolve Atlas project and cluster identity before execution.",
+    "Create only new portal users and roles; never edit existing accounts.",
+    "Scope new users to the verified cluster.",
+    "Temporary setup account expires after provisioning window.",
+    "Do not alter network access lists, existing databases, collections, indexes, roles, or users.",
+    "No production records copied.",
+    "Runtime cannot delete employees or alter/remove existing audit history."
+  ],
+  "backup": "No existing target collections were found. Recheck immediately before creation and stop if any appear. Preserve preflight metadata; no existing data is overwritten.",
+  "rollback": "Stop portal writes and revoke only newly created portal credentials. Retain any new collections and data until separately reviewed; no automatic drops.",
+  "setupStatus": "Temporary setup user and role deleted after provisioning; local setup credential removed."
+}

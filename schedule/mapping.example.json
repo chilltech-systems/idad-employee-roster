@@ -1,0 +1,91 @@
+{
+  "reviewed": false,
+  "description": "Fictional coordinates only. Do not use against the reference workbook.",
+  "blocks": [
+    {
+      "sheet": "Fictional Schedule",
+      "storeId": "TX-DEMO-1",
+      "nameColumn": 1,
+      "rows": [2, 3],
+      "days": [
+        {
+          "offset": 0,
+          "slots": [
+            {
+              "key": "sun-1",
+              "startColumn": 2,
+              "endColumn": 3,
+              "overnightColumn": 4
+            }
+          ]
+        },
+        {
+          "offset": 1,
+          "slots": [
+            {
+              "key": "mon-1",
+              "startColumn": 5,
+              "endColumn": 6,
+              "overnightColumn": 7
+            }
+          ]
+        },
+        {
+          "offset": 2,
+          "slots": [
+            {
+              "key": "tue-1",
+              "startColumn": 8,
+              "endColumn": 9,
+              "overnightColumn": 10
+            }
+          ]
+        },
+        {
+          "offset": 3,
+          "slots": [
+            {
+              "key": "wed-1",
+              "startColumn": 11,
+              "endColumn": 12,
+              "overnightColumn": 13
+            }
+          ]
+        },
+        {
+          "offset": 4,
+          "slots": [
+            {
+              "key": "thu-1",
+              "startColumn": 14,
+              "endColumn": 15,
+              "overnightColumn": 16
+            }
+          ]
+        },
+        {
+          "offset": 5,
+          "slots": [
+            {
+              "key": "fri-1",
+              "startColumn": 17,
+              "endColumn": 18,
+              "overnightColumn": 19
+            }
+          ]
+        },
+        {
+          "offset": 6,
+          "slots": [
+            {
+              "key": "sat-1",
+              "startColumn": 20,
+              "endColumn": 21,
+              "overnightColumn": 22
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

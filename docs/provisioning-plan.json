@@ -1,0 +1,87 @@
+{
+  "database": "employee_directory_test (or approved suffixed test database)",
+  "operations": [
+    {
+      "name": "employees",
+      "required": [
+        "id",
+        "storeId",
+        "posSource",
+        "posEmployeeId",
+        "revision",
+        "status",
+        "verification"
+      ],
+      "indexes": [
+        {
+          "key": {
+            "id": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "storeId": 1,
+            "posSource": 1,
+            "posEmployeeId": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "storeId": 1,
+            "status": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "employee_directory_access",
+      "required": ["id", "kind"],
+      "indexes": [
+        {
+          "key": {
+            "id": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "accountId": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "employee_directory_audit",
+      "required": ["id", "at", "actor", "action"],
+      "indexes": [
+        {
+          "key": {
+            "id": 1
+          },
+          "unique": true
+        },
+        {
+          "key": {
+            "storeId": 1,
+            "at": -1
+          }
+        }
+      ]
+    },
+    {
+      "name": "employee_directory_sync",
+      "required": ["value"],
+      "indexes": []
+    }
+  ],
+  "initialRecord": {
+    "collection": "employee_directory_sync",
+    "_id": "state",
+    "value": {
+      "version": 0
+    }
+  },
+  "productionExecutable": false
+}

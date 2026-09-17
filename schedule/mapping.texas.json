@@ -1,0 +1,948 @@
+{
+  "reviewed": true,
+  "sheet": "Texas Schedule",
+  "nameColumn": 14,
+  "hourlyCalculations": "Hourly Calculations",
+  "identityHelper": "Directory Bindings",
+  "rows": [
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 22,
+      "hourlyRow": 5
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 23,
+      "hourlyRow": 6
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 24,
+      "hourlyRow": 7
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 25,
+      "hourlyRow": 8
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 26,
+      "hourlyRow": 9
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 27,
+      "hourlyRow": 10
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 28,
+      "hourlyRow": 11
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 29,
+      "hourlyRow": 12
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 30,
+      "hourlyRow": 13
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 31,
+      "hourlyRow": 14
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 32,
+      "hourlyRow": 15
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 33,
+      "hourlyRow": 16
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 34,
+      "hourlyRow": 17
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 35,
+      "hourlyRow": 18
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 36,
+      "hourlyRow": 19
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 37,
+      "hourlyRow": 20
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 38,
+      "hourlyRow": 21
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 39,
+      "hourlyRow": 22
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 40,
+      "hourlyRow": 23
+    },
+    {
+      "storeId": "TX-149",
+      "scheduleRow": 41,
+      "hourlyRow": 24
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 137,
+      "hourlyRow": 30
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 138,
+      "hourlyRow": 31
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 139,
+      "hourlyRow": 32
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 140,
+      "hourlyRow": 33
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 141,
+      "hourlyRow": 34
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 142,
+      "hourlyRow": 35
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 143,
+      "hourlyRow": 36
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 144,
+      "hourlyRow": 37
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 145,
+      "hourlyRow": 38
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 146,
+      "hourlyRow": 39
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 147,
+      "hourlyRow": 40
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 148,
+      "hourlyRow": 41
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 149,
+      "hourlyRow": 42
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 150,
+      "hourlyRow": 43
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 151,
+      "hourlyRow": 44
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 152,
+      "hourlyRow": 45
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 153,
+      "hourlyRow": 46
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 154,
+      "hourlyRow": 47
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 155,
+      "hourlyRow": 48
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 156,
+      "hourlyRow": 49
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 158,
+      "hourlyRow": 51
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 159,
+      "hourlyRow": 52
+    },
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 160,
+      "hourlyRow": 53
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 231,
+      "hourlyRow": 63
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 232,
+      "hourlyRow": 64
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 233,
+      "hourlyRow": 65
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 234,
+      "hourlyRow": 66
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 235,
+      "hourlyRow": 67
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 236,
+      "hourlyRow": 68
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 237,
+      "hourlyRow": 69
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 238,
+      "hourlyRow": 70
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 239,
+      "hourlyRow": 71
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 240,
+      "hourlyRow": 72
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 241,
+      "hourlyRow": 73
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 242,
+      "hourlyRow": 74
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 243,
+      "hourlyRow": 75
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 244,
+      "hourlyRow": 76
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 245,
+      "hourlyRow": 77
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 246,
+      "hourlyRow": 78
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 247,
+      "hourlyRow": 79
+    },
+    {
+      "storeId": "TX-219",
+      "scheduleRow": 248,
+      "hourlyRow": 80
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 265,
+      "hourlyRow": 90
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 266,
+      "hourlyRow": 91
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 267,
+      "hourlyRow": 92
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 268,
+      "hourlyRow": 93
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 269,
+      "hourlyRow": 94
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 270,
+      "hourlyRow": 95
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 271,
+      "hourlyRow": 96
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 272,
+      "hourlyRow": 97
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 273,
+      "hourlyRow": 98
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 274,
+      "hourlyRow": 99
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 275,
+      "hourlyRow": 100
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 279,
+      "hourlyRow": 104
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 280,
+      "hourlyRow": 105
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 297,
+      "hourlyRow": 110
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 298,
+      "hourlyRow": 111
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 299,
+      "hourlyRow": 112
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 300,
+      "hourlyRow": 113
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 301,
+      "hourlyRow": 114
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 302,
+      "hourlyRow": 115
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 303,
+      "hourlyRow": 116
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 304,
+      "hourlyRow": 117
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 305,
+      "hourlyRow": 118
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 306,
+      "hourlyRow": 119
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 307,
+      "hourlyRow": 120
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 308,
+      "hourlyRow": 121
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 309,
+      "hourlyRow": 122
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 310,
+      "hourlyRow": 123
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 311,
+      "hourlyRow": 124
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 312,
+      "hourlyRow": 125
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 313,
+      "hourlyRow": 126
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 314,
+      "hourlyRow": 127
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 315,
+      "hourlyRow": 128
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 316,
+      "hourlyRow": 129
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 317,
+      "hourlyRow": 130
+    },
+    {
+      "storeId": "TX-141",
+      "scheduleRow": 318,
+      "hourlyRow": 131
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 345,
+      "hourlyRow": 151
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 346,
+      "hourlyRow": 152
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 347,
+      "hourlyRow": 153
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 348,
+      "hourlyRow": 154
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 349,
+      "hourlyRow": 155
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 350,
+      "hourlyRow": 156
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 351,
+      "hourlyRow": 157
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 352,
+      "hourlyRow": 158
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 353,
+      "hourlyRow": 159
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 354,
+      "hourlyRow": 160
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 355,
+      "hourlyRow": 161
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 356,
+      "hourlyRow": 162
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 357,
+      "hourlyRow": 163
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 358,
+      "hourlyRow": 164
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 359,
+      "hourlyRow": 165
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 360,
+      "hourlyRow": 166
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 361,
+      "hourlyRow": 167
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 362,
+      "hourlyRow": 168
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 363,
+      "hourlyRow": 169
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 364,
+      "hourlyRow": 170
+    },
+    {
+      "storeId": "TX-184",
+      "scheduleRow": 365,
+      "hourlyRow": 171
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 441,
+      "hourlyRow": 176
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 442,
+      "hourlyRow": 177
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 443,
+      "hourlyRow": 178
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 444,
+      "hourlyRow": 179
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 445,
+      "hourlyRow": 180
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 446,
+      "hourlyRow": 181
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 447,
+      "hourlyRow": 182
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 448,
+      "hourlyRow": 183
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 449,
+      "hourlyRow": 184
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 450,
+      "hourlyRow": 185
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 451,
+      "hourlyRow": 186
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 452,
+      "hourlyRow": 187
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 453,
+      "hourlyRow": 188
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 454,
+      "hourlyRow": 189
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 455,
+      "hourlyRow": 190
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 456,
+      "hourlyRow": 191
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 457,
+      "hourlyRow": 192
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 458,
+      "hourlyRow": 193
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 459,
+      "hourlyRow": 194
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 460,
+      "hourlyRow": 195
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 461,
+      "hourlyRow": 196
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 462,
+      "hourlyRow": 197
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 463,
+      "hourlyRow": 198
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 464,
+      "hourlyRow": 199
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 466,
+      "hourlyRow": 201
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 467,
+      "hourlyRow": 202
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 468,
+      "hourlyRow": 203
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 469,
+      "hourlyRow": 204
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 485,
+      "hourlyRow": 209
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 486,
+      "hourlyRow": 210
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 487,
+      "hourlyRow": 211
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 488,
+      "hourlyRow": 212
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 489,
+      "hourlyRow": 213
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 490,
+      "hourlyRow": 214
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 491,
+      "hourlyRow": 215
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 492,
+      "hourlyRow": 216
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 493,
+      "hourlyRow": 217
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 494,
+      "hourlyRow": 218
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 495,
+      "hourlyRow": 219
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 496,
+      "hourlyRow": 220
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 497,
+      "hourlyRow": 221
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 498,
+      "hourlyRow": 222
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 499,
+      "hourlyRow": 223
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 500,
+      "hourlyRow": 224
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 501,
+      "hourlyRow": 225
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 502,
+      "hourlyRow": 226
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 503,
+      "hourlyRow": 227
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 504,
+      "hourlyRow": 228
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 505,
+      "hourlyRow": 229
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 506,
+      "hourlyRow": 230
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 507,
+      "hourlyRow": 231
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 508,
+      "hourlyRow": 232
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 513,
+      "hourlyRow": 237
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 514,
+      "hourlyRow": 238
+    }
+  ],
+  "excludedMergedNonNameRows": [
+    {
+      "storeId": "TX-144",
+      "scheduleRow": 157,
+      "hourlyRow": 50
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 276,
+      "hourlyRow": 101
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 277,
+      "hourlyRow": 102
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 278,
+      "hourlyRow": 103
+    },
+    {
+      "storeId": "TX-154",
+      "scheduleRow": 465,
+      "hourlyRow": 200
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 509,
+      "hourlyRow": 233
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 510,
+      "hourlyRow": 234
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 511,
+      "hourlyRow": 235
+    },
+    {
+      "storeId": "TX-200",
+      "scheduleRow": 512,
+      "hourlyRow": 236
+    }
+  ],
+  "days": [
+    {
+      "day": "Sunday",
+      "start": "P",
+      "end": "Q"
+    },
+    {
+      "day": "Monday",
+      "start": "U",
+      "end": "V"
+    },
+    {
+      "day": "Tuesday",
+      "start": "Z",
+      "end": "AA"
+    },
+    {
+      "day": "Wednesday",
+      "start": "AE",
+      "end": "AF"
+    },
+    {
+      "day": "Thursday",
+      "start": "AJ",
+      "end": "AK"
+    },
+    {
+      "day": "Friday",
+      "start": "AO",
+      "end": "AP"
+    },
+    {
+      "day": "Saturday",
+      "start": "AT",
+      "end": "AU"
+    }
+  ]
+}

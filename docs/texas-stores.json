@@ -1,0 +1,58 @@
+[
+  {
+    "id": "TX-141",
+    "name": "Bush Intercontinental",
+    "state": "Texas",
+    "brand": "Auntie Anne’s",
+    "posSource": "Qu"
+  },
+  {
+    "id": "TX-144",
+    "name": "Memorial City",
+    "state": "Texas",
+    "brand": "Auntie Anne’s",
+    "posSource": "Qu"
+  },
+  {
+    "id": "TX-149",
+    "name": "Baybrook",
+    "state": "Texas",
+    "brand": "Auntie Anne’s",
+    "posSource": "Qu"
+  },
+  {
+    "id": "TX-154",
+    "name": "Galleria",
+    "state": "Texas",
+    "brand": "Auntie Anne’s",
+    "posSource": "Qu"
+  },
+  {
+    "id": "TX-162",
+    "name": "Woodlands",
+    "state": "Texas",
+    "brand": "Auntie Anne’s",
+    "posSource": "Qu"
+  },
+  {
+    "id": "TX-184",
+    "name": "Tanger Outlets",
+    "state": "Texas",
+    "brand": "Auntie Anne’s",
+    "posSource": "Qu"
+  },
+  {
+    "id": "TX-200",
+    "name": "Galleria II",
+    "state": "Texas",
+    "brand": "Auntie Anne’s",
+    "posSource": "Qu"
+  },
+  {
+    "id": "TX-219",
+    "name": "Memorial City II",
+    "state": "Texas",
+    "brand": "Auntie Anne’s",
+    "posSource": "Qu"
+  }
+]

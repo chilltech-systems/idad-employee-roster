@@ -1,0 +1,17 @@
+# Upload only runtime/build inputs. Private plans, data and credentials stay local.
+.git
+.env*
+.data
+.next
+.vercel
+node_modules
+coverage
+*.tsbuildinfo
+docs
+tests
+scripts
+AGENTS.md
+CLAUDE.md
+README.md
+schedule/*
+!schedule/mapping.texas.json

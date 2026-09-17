@@ -1,0 +1,52 @@
+{
+  "name": "idad-employee-roster",
+  "version": "1.0.0",
+  "description": "Audited multi-store employee identity and roster service for integration with scheduling and reporting systems.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3210",
+    "build": "next build --webpack",
+    "start": "next start --hostname 127.0.0.1 --port 3210",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "demo:flow": "node --import tsx scripts/demo-flow.ts",
+    "db:plan": "node --import tsx scripts/provision.ts",
+    "db:provision:test": "node --import tsx scripts/provision.ts --apply",
+    "account:setup:test": "node --import tsx scripts/setup-account.ts",
+    "api:smoke": "node --import tsx scripts/api-smoke.ts",
+    "format": "prettier --write src scripts tests docs schedule README.md next.config.ts tsconfig.json package.json",
+    "shifts:export": "node --import tsx scripts/export-shifts.ts",
+    "api:contract": "node --import tsx scripts/openapi.ts",
+    "roster:check": "node --import tsx scripts/roster-check.ts",
+    "sync:worker": "node --env-file=.env.local --import tsx scripts/sync-worker.ts"
+  },
+  "keywords": [
+    "employee-roster",
+    "employee-directory",
+    "multi-store",
+    "scheduling",
+    "nextjs"
+  ],
+  "author": "CHILL TECH",
+  "license": "UNLICENSED",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "lucide-react": "^1.43.0",
+    "luxon": "^3.7.2",
+    "mongodb": "^7.6.0",
+    "next": "^16.3.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.1"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.5",
+    "@types/node": "^22.20.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}
