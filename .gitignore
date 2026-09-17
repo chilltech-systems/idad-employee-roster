@@ -40,6 +40,7 @@ scripts/migration-package.ts
 scripts/multistore-preview.ts
 scripts/provision-production.ts
 scripts/rotate-production-credential.ts
+tests/migration-package.test.ts
 
 # Private source-workbook audit contains owner-only account identifiers.
 schedule/COPY-AUDIT.md
