@@ -29,12 +29,18 @@ async function login(accountId: string, code: string) {
   assert.equal(r.status, 200);
   return r.headers.get("set-cookie")!.split(";")[0];
 }
-const admin = await login("IDADadmin", "demo-admin"),
-  manager = await login("TX-DEMO-2", "demo-store");
+assert.equal(
+  (
+    await call("login", "POST", {
+      accountId: "TX-DEMO-2",
+      code: "demo-store",
+    })
+  ).status,
+  401,
+);
+const admin = await login("IDADadmin", "demo-admin");
 try {
   assert.equal((await call("admin/people")).status, 401);
-  for (const endpoint of ["admin/people", "admin/people/migration-preview"])
-    assert.equal((await call(endpoint, "GET", undefined, manager)).status, 403);
   const token = crypto.randomUUID();
   const input = {
     storeId: "TX-DEMO-1",
@@ -67,11 +73,6 @@ try {
     ],
   };
   assert.equal(
-    (await call(`admin/people/${profile.id}`, "PATCH", payload, manager))
-      .status,
-    403,
-  );
-  assert.equal(
     (
       await call(
         `admin/people/${profile.id}`,
@@ -97,7 +98,7 @@ try {
     409,
   );
   const roster = await (
-    await call("roster?storeId=TX-DEMO-2", "GET", undefined, manager)
+    await call("roster?storeId=TX-DEMO-2", "GET", undefined, admin)
   ).json();
   const pending = roster.employees.find(
     (e: { personId?: string }) => e.personId === profile.id,
@@ -114,7 +115,7 @@ try {
     revision: pending.revision,
   };
   assert.equal(
-    (await call(`employees/${pending.id}`, "PATCH", edit, manager)).status,
+    (await call(`employees/${pending.id}`, "PATCH", edit, admin)).status,
     200,
   );
   const reread = await (
@@ -141,9 +142,8 @@ try {
     200,
   );
   console.log(
-    "PASS: admin-only profiles, origin denial, persistent assignments, stale revision, pending roster identity, manager-local deactivation and retained history.",
+    "PASS: retired store-profile denial, IDAD Admin-only profiles, origin denial, persistent assignments, stale revision, pending roster identity, and retained history.",
   );
 } finally {
   await call("logout", "POST", {}, admin);
-  await call("logout", "POST", {}, manager);
 }

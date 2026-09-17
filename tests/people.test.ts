@@ -14,6 +14,7 @@ import {
   saveEmployee,
   rosterRows,
   manualVerify,
+  setCandidateArchived,
 } from "../src/lib/service";
 import { exportShifts, laborPreview } from "../src/lib/shifts";
 import { assertStateTransition } from "../src/lib/storage-scope";
@@ -89,15 +90,15 @@ test("multiple pending assignments preserve scoped unique keys, appear immediate
   assert.throws(() => linkPeople(s, manager, "demo-1", {}), /Administrator/);
   assert.throws(() => linkCandidate(s, manager, "demo-1", {}), /Administrator/);
 });
-test("manager deactivation is local and pending identities and manual assignments survive repeated refresh", () => {
+test("admin deactivation is local and pending identities and manual assignments survive repeated refresh", () => {
   const s = seed();
   assign(s);
-  const e = rosterRows(s, manager, "TX-DEMO-2").find(
+  const e = rosterRows(s, admin, "TX-DEMO-2").find(
     (e) => e.personId === "demo-1",
   )!;
   saveEmployee(
     s,
-    manager,
+    admin,
     {
       storeId: e.storeId,
       posSource: e.posSource,
@@ -209,6 +210,19 @@ test("new-store POS discovery stays in review and explicit linking verifies the 
   assert.ok(candidate);
   assert.equal(pending.posIdentityPending, true);
   const p = profile(s);
+  setCandidateArchived(s, admin, candidate.id, true);
+  assert.throws(
+    () =>
+      linkCandidate(s, admin, p.id, {
+        revision: p.revision,
+        candidateId: candidate.id,
+        posEmployeeId: candidate.posEmployeeId,
+        posName: candidate.posName,
+        confirmed: true,
+      }),
+    /archived/,
+  );
+  setCandidateArchived(s, admin, candidate.id, false);
   linkCandidate(s, admin, p.id, {
     revision: p.revision,
     candidateId: candidate.id,

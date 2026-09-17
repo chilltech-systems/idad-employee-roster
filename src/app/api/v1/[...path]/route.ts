@@ -7,6 +7,7 @@ import {
   currentAccount,
   listCandidates,
   acceptCandidate,
+  setCandidateArchived,
   listEmployees,
   login,
   logout,
@@ -28,6 +29,7 @@ import {
   recordDraftExport,
 } from "@/lib/draft-schedule";
 import { syncDraftNow } from "@/lib/draft-operations";
+import { retainPreviousRoster } from "@/lib/current-day-roster";
 import { portalOrigin } from "@/lib/origin";
 import { hasGoogleCredential } from "@/lib/google-credential";
 import {
@@ -37,6 +39,11 @@ import {
   linkCandidate,
   migrationPreview,
 } from "@/lib/people";
+import {
+  reportingDraftExportRequestSchema,
+  requireReportingExportToken,
+  validateReportingDraftExports,
+} from "@/lib/reporting-draft-export";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -50,7 +57,10 @@ async function handler(
     const path = (await params).path.join("/");
     const method = req.method;
     const configuredOrigin = portalOrigin();
+    const reportingExport =
+      path === "reporting/draft-exports/validate" && method === "POST";
     if (
+      !reportingExport &&
       !["GET", "HEAD"].includes(method) &&
       req.headers.get("origin") !== configuredOrigin
     )
@@ -84,6 +94,17 @@ async function handler(
       throw new Problem(400, "A JSON object is required.");
     const token = req.cookies.get(cookieName)?.value;
     const repo = repository();
+    if (reportingExport) {
+      requireReportingExportToken(req.headers.get("authorization"));
+      const payload = reportingDraftExportRequestSchema.parse(body);
+      const grid = await stableDraft(await draftClient());
+      const result = await repo.transact((state) =>
+        validateReportingDraftExports(grid, state, payload),
+      );
+      return NextResponse.json(result, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
     if (path === "login" && method === "POST") {
       const result = await repo.transact((s) => login(s, body));
       if (result.error)
@@ -108,12 +129,18 @@ async function handler(
         production: mode() === "mongo-production",
       });
     if (path === "admin/refresh" && method === "POST") {
-      await repo.transact((s) => requireAdmin(currentAccount(s, token)));
+      const previous = await repo.transact((s) => {
+        requireAdmin(currentAccount(s, token));
+        return s.sync.snapshot ? structuredClone(s.sync.snapshot) : undefined;
+      });
       let source;
       try {
         source = Object.keys(body as object).length
           ? body
-          : await fetchRoster();
+          : retainPreviousRoster(
+              await fetchRoster({ includeCurrentDay: true }),
+              previous,
+            );
       } catch (e) {
         await repo.transact((s) => {
           requireAdmin(currentAccount(s, token));
@@ -253,10 +280,27 @@ async function handler(
         }
       }
       if (path === "candidates" && method === "GET")
-        return listCandidates(s, account, storeId);
+        return (() => {
+          const status = req.nextUrl.searchParams.get("status") || "pending";
+          if (status !== "pending" && status !== "archived")
+            throw new Problem(400, "Unknown candidate review status.");
+          return listCandidates(s, account, storeId, status);
+        })();
       const candidate = /^candidates\/([^/]+)\/accept$/.exec(path);
       if (candidate && method === "POST")
         return acceptCandidate(s, account, candidate[1], body);
+      const candidateReview = /^candidates\/([^/]+)\/(archive|restore)$/.exec(
+        path,
+      );
+      if (candidateReview && method === "POST") {
+        z.object({}).strict().parse(body);
+        return setCandidateArchived(
+          s,
+          account,
+          candidateReview[1],
+          candidateReview[2] === "archive",
+        );
+      }
       if (path === "draft/status" && method === "GET")
         return {
           configured:

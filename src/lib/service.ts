@@ -23,6 +23,7 @@ import {
   type Account,
   type Employee,
   type State,
+  ADMIN_ACCOUNT_ID,
 } from "./model";
 const tokenHash = (s: string) => createHash("sha256").update(s).digest("hex");
 const now = () => new Date().toISOString();
@@ -46,11 +47,7 @@ export function currentAccount(s: State, token?: string): Account {
   const account = s.access.find(
     (x) => x.kind === "credential" && x.id === session?.accountId,
   )?.account;
-  if (
-    !account ||
-    (account.role === "store" &&
-      !stores().some((store) => store.id === account.storeId))
-  )
+  if (account?.role !== "admin" || account.id !== ADMIN_ACCOUNT_ID)
     throw new Problem(401, "Your session has ended. Please sign in again.");
   return account;
 }
@@ -90,11 +87,14 @@ export function login(s: State, body: unknown) {
     cred?.hash && timingSafeEqual(candidate, Buffer.from(cred.hash, "hex"));
   if (
     !valid ||
-    (cred?.account?.role === "store" &&
-      !stores().some((store) => store.id === cred.account!.storeId))
+    cred?.account?.role !== "admin" ||
+    cred.account.id !== ADMIN_ACCOUNT_ID
   ) {
     attempt.count = (attempt.count || 0) + 1;
-    return { error: "Store or access code is incorrect.", status: 401 };
+    return {
+      error: "IDAD Admin Profile or access code is incorrect.",
+      status: 401,
+    };
   }
   s.access = s.access.filter((x) => x.id !== key);
   const token = randomBytes(32).toString("hex");
@@ -126,6 +126,14 @@ export function resetCode(s: State, a: Account, body: unknown) {
     (x) => x.kind === "credential" && x.id === accountId,
   );
   if (!existing?.account) throw new Problem(404, "Account not found.");
+  if (
+    existing.account.role !== "admin" ||
+    existing.account.id !== ADMIN_ACCOUNT_ID
+  )
+    throw new Problem(
+      400,
+      "Single-store profiles are retired. Update the IDAD Admin Profile instead.",
+    );
   s.access = s.access.filter(
     (x) =>
       x.id !== accountId &&
@@ -445,13 +453,19 @@ export function rosterCsv(s: State, a: Account, storeId: string) {
     .join("\r\n");
 }
 
-export function listCandidates(s: State, a: Account, storeId?: string) {
+export function listCandidates(
+  s: State,
+  a: Account,
+  storeId?: string,
+  status: "pending" | "archived" = "pending",
+) {
   if (storeId) requireStore(a, storeId);
   return (s.sync.candidates || [])
     .filter(
       (c) =>
         canAccess(a, c.storeId) &&
         (!storeId || c.storeId === storeId) &&
+        (status === "archived" ? !!c.archivedAt : !c.archivedAt) &&
         !s.employees.some((e) => identityKey(e) === identityKey(c)),
     )
     .map((c) => ({
@@ -460,6 +474,39 @@ export function listCandidates(s: State, a: Account, storeId?: string) {
         (r) => identityKey(r) === identityKey(c),
       ),
     }));
+}
+export function setCandidateArchived(
+  s: State,
+  a: Account,
+  id: string,
+  archived: boolean,
+) {
+  requireAdmin(a);
+  const candidate = (s.sync.candidates || []).find((c) => c.id === id);
+  if (!candidate) throw new Problem(404, "Candidate not found.");
+  if (s.employees.some((e) => identityKey(e) === identityKey(candidate)))
+    throw new Problem(
+      409,
+      "This POS identity is already in the directory. Refresh the list.",
+    );
+  if (archived === !!candidate.archivedAt) return candidate;
+  if (archived) {
+    candidate.archivedAt = now();
+    candidate.archivedBy = a.id;
+  } else {
+    delete candidate.archivedAt;
+    delete candidate.archivedBy;
+  }
+  audit(
+    s,
+    a,
+    archived ? "employee.candidate-archived" : "employee.candidate-restored",
+    {
+      storeId: candidate.storeId,
+      reason: `${candidate.posName} · ${candidate.posEmployeeId}`,
+    },
+  );
+  return candidate;
 }
 export function acceptCandidate(
   s: State,
@@ -470,6 +517,11 @@ export function acceptCandidate(
   const candidate = (s.sync.candidates || []).find((c) => c.id === id);
   if (!candidate) throw new Problem(404, "Candidate not found.");
   requireStore(a, candidate.storeId);
+  if (candidate.archivedAt)
+    throw new Problem(
+      409,
+      "This review is archived. Return it to review before adding the employee.",
+    );
   if (s.employees.some((e) => identityKey(e) === identityKey(candidate)))
     throw new Problem(
       409,

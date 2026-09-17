@@ -27,16 +27,25 @@ assert.equal(
     await call(
       "login",
       "POST",
-      { accountId: "TX-DEMO-1", code: "demo-store" },
+      { accountId: "IDADadmin", code: "demo-admin" },
       undefined,
       "https://bad.example",
     )
   ).status,
   403,
 );
+assert.equal(
+  (
+    await call("login", "POST", {
+      accountId: "TX-DEMO-1",
+      code: "demo-store",
+    })
+  ).status,
+  401,
+);
 const signed = await call("login", "POST", {
-  accountId: "TX-DEMO-1",
-  code: "demo-store",
+  accountId: "IDADadmin",
+  code: "demo-admin",
 });
 assert.equal(signed.status, 200);
 const header = signed.headers.get("set-cookie")!;
@@ -46,35 +55,16 @@ const cookie = header.split(";")[0];
 const records = await (
   await call("employees", "GET", undefined, cookie)
 ).json();
-assert.ok(records.every((e: { storeId: string }) => e.storeId === "TX-DEMO-1"));
 assert.equal(
   (await call("employees?storeId=TX-DEMO-2", "GET", undefined, cookie)).status,
-  403,
+  200,
 );
 assert.equal(
   (await call("roster.csv?storeId=TX-DEMO-2", "GET", undefined, cookie)).status,
-  403,
+  200,
 );
-assert.equal((await call("admin/refresh", "POST", {}, cookie)).status, 403);
-assert.equal(
-  (
-    await call(
-      "employees/demo-7",
-      "PATCH",
-      {
-        storeId: "TX-DEMO-1",
-        posSource: "Qu",
-        posEmployeeId: "990",
-        posName: "Fake Person",
-        firstName: "Fake",
-        lastName: "Person",
-        revision: 1,
-      },
-      cookie,
-    )
-  ).status,
-  403,
-);
+assert.ok(records.some((e: { storeId: string }) => e.storeId === "TX-DEMO-1"));
+assert.ok(records.some((e: { storeId: string }) => e.storeId === "TX-DEMO-2"));
 const own = await call(
   "roster.csv?storeId=TX-DEMO-1",
   "GET",
@@ -167,5 +157,5 @@ await call(
 assert.equal((await call("logout", "POST", {}, cookie)).status, 200);
 assert.equal((await call("employees", "GET", undefined, cookie)).status, 401);
 console.log(
-  "PASS: unauthenticated and cross-store denial, origin check, session cookie, scoped CSV, store admin denial, employee -> roster identity -> shift -> labor preview, logout revocation.",
+  "PASS: retired store-profile denial, IDAD Admin all-store access, origin check, secure session cookie, employee -> roster identity -> shift -> labor preview, and logout revocation.",
 );

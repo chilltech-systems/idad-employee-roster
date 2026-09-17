@@ -46,24 +46,44 @@ function endpoint(
   schema?: Record<string, unknown>,
   options: {
     public?: boolean;
+    reportingToken?: boolean;
     store?: boolean;
     csv?: boolean;
     id?: boolean;
+    response?: Record<string, unknown>;
   } = {},
 ) {
   paths[path] ??= {};
   paths[path][method] = {
     summary,
     operationId: method + "_" + path.replace(/[^a-zA-Z0-9]/g, "_"),
-    security: options.public ? [] : [{ session: [] }],
+    security: options.public
+      ? []
+      : options.reportingToken
+        ? [{ reportingToken: [] }]
+        : [{ session: [] }],
     parameters: [
       ...(options.store
         ? [
             {
               in: "query",
               name: "storeId",
-              required: path !== "/employees",
+              required: !["/employees", "/candidates"].includes(path),
               schema: { type: "string" },
+            },
+          ]
+        : []),
+      ...(path === "/candidates" && method === "get"
+        ? [
+            {
+              in: "query",
+              name: "status",
+              required: false,
+              schema: {
+                type: "string",
+                enum: ["pending", "archived"],
+                default: "pending",
+              },
             },
           ]
         : []),
@@ -77,7 +97,7 @@ function endpoint(
             },
           ]
         : []),
-      ...(method !== "get"
+      ...(method !== "get" && !options.reportingToken
         ? [
             {
               in: "header",
@@ -98,7 +118,7 @@ function endpoint(
         description: "Success",
         content: options.csv
           ? { "text/csv": { schema: { type: "string" } } }
-          : json(object),
+          : json(options.response ?? object),
       },
       ...errors,
     },
@@ -107,14 +127,14 @@ function endpoint(
 endpoint(
   "/login-options",
   "get",
-  "Enabled store choices and demo flag",
+  "Configured stores and environment flags for the IDAD Admin login",
   undefined,
   { public: true },
 );
 endpoint(
   "/login",
   "post",
-  "Sign in; issues seven-day HttpOnly SameSite=Strict cookie",
+  "Sign in to the IDAD Admin Profile; retired single-store profiles are rejected",
   {
     type: "object",
     required: ["accountId", "code"],
@@ -174,7 +194,7 @@ endpoint(
 endpoint(
   "/admin/access/reset",
   "post",
-  "Reset shared code and revoke all account sessions",
+  "Update the IDAD Admin code and revoke all IDAD Admin sessions",
   {
     type: "object",
     required: ["accountId", "code", "reason"],
@@ -243,7 +263,7 @@ endpoint(
 endpoint(
   "/candidates",
   "get",
-  "POS identities awaiting manager review; scoped by store",
+  "POS identities awaiting administrator review; optionally scoped by store",
   undefined,
   { store: true },
 );
@@ -252,6 +272,20 @@ endpoint(
   "post",
   "Confirm a discovered POS identity and create its directory record",
   z.toJSONSchema(inputSchema),
+  { id: true },
+);
+endpoint(
+  "/candidates/{id}/archive",
+  "post",
+  "Record an administrator-reviewed candidate without creating or linking an employee",
+  object,
+  { id: true },
+);
+endpoint(
+  "/candidates/{id}/restore",
+  "post",
+  "Return an archived candidate to the active Identity Review queue",
+  object,
   { id: true },
 );
 endpoint(
@@ -305,6 +339,58 @@ endpoint(
   },
 );
 endpoint(
+  "/reporting/draft-exports/validate",
+  "post",
+  "Machine-scoped validation and complete accepted shift exports for weekly labor reporting",
+  {
+    type: "object",
+    required: ["weekStart", "storeIds"],
+    additionalProperties: false,
+    properties: {
+      weekStart: { type: "string", format: "date" },
+      storeIds: {
+        type: "array",
+        minItems: 1,
+        maxItems: 32,
+        uniqueItems: true,
+        items: { type: "string", minLength: 1, maxLength: 40 },
+      },
+    },
+  },
+  {
+    reportingToken: true,
+    response: {
+      type: "object",
+      required: [
+        "version",
+        "workbookId",
+        "weekStart",
+        "generatedAt",
+        "results",
+      ],
+      properties: {
+        version: { type: "integer", const: 1 },
+        workbookId: { type: "string" },
+        weekStart: { type: "string", format: "date" },
+        generatedAt: { type: "string", format: "date-time" },
+        results: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["storeId", "status", "issues", "export"],
+            properties: {
+              storeId: { type: "string" },
+              status: { type: "string", enum: ["ready", "blocked"] },
+              issues: { type: "array", items: { type: "string" } },
+              export: { anyOf: [{ type: "object" }, { type: "null" }] },
+            },
+          },
+        },
+      },
+    },
+  },
+);
+endpoint(
   "/admin/people",
   "get",
   "Admin: all shared employee profiles, sorted by first then last name",
@@ -344,7 +430,7 @@ await writeFile(
         title: "IDAD Employee Directory API",
         version: "1.0.0",
         description:
-          "Session-scoped employee directory API. Multi-store endpoints are admin-only; pending assignments expose a blank POS ID and explicit pending flag.",
+          "IDAD Admin-only employee directory API. Single-store login profiles are retired; pending assignments expose a blank POS ID and explicit pending flag.",
       },
       servers: [{ url: "http://127.0.0.1:3210/api/v1" }],
       components: {
@@ -353,6 +439,12 @@ await writeFile(
             type: "apiKey",
             in: "cookie",
             name: "idad_directory_session",
+          },
+          reportingToken: {
+            type: "http",
+            scheme: "bearer",
+            description:
+              "Dedicated machine credential limited to validated reporting exports.",
           },
         },
       },

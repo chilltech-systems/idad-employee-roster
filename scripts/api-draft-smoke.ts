@@ -26,27 +26,34 @@ async function signIn(accountId: string, code: string) {
   assert.equal(r.status, 200);
   return r.headers.get("set-cookie")!.split(";")[0];
 }
-const manager = await signIn("TX-DEMO-1", "demo-store"),
-  admin = await signIn("IDADadmin", "demo-admin");
+assert.equal(
+  (
+    await call("login", "POST", {
+      accountId: "TX-DEMO-1",
+      code: "demo-store",
+    })
+  ).status,
+  401,
+);
+const admin = await signIn("IDADadmin", "demo-admin");
 try {
   assert.equal(
-    (await call("candidates?storeId=TX-DEMO-2", "GET", undefined, manager))
+    (await call("candidates?storeId=TX-DEMO-2", "GET", undefined, admin))
       .status,
-    403,
-  );
-  assert.equal((await call("draft/sync", "POST", {}, manager)).status, 403);
-  assert.equal(
-    (await call("draft/export", "POST", { storeId: "TX-DEMO-2" }, manager))
-      .status,
-    403,
+    200,
   );
   assert.equal(
-    (await call("draft/export", "POST", { storeId: "TX-DEMO-1" }, manager))
+    (await call("draft/export", "POST", { storeId: "TX-DEMO-2" }, admin))
       .status,
     503,
   );
   assert.equal(
-    (await (await call("draft/status", "GET", undefined, manager)).json())
+    (await call("draft/export", "POST", { storeId: "TX-DEMO-1" }, admin))
+      .status,
+    503,
+  );
+  assert.equal(
+    (await (await call("draft/status", "GET", undefined, admin)).json())
       .configured,
     false,
   );
@@ -119,21 +126,17 @@ try {
     aliases: [],
     status: "active",
   };
-  assert.equal(
-    (await call(`candidates/${other.id}/accept`, "POST", body, manager)).status,
-    403,
-  );
   const accepted = await call(
     `candidates/${own.id}/accept`,
     "POST",
     body,
-    manager,
+    admin,
   );
   assert.equal(accepted.status, 200);
   const e = await accepted.json();
   assert.equal(e.verification, "confirmed");
   assert.equal(
-    (await call(`candidates/${own.id}/accept`, "POST", body, manager)).status,
+    (await call(`candidates/${own.id}/accept`, "POST", body, admin)).status,
     409,
   );
   assert.equal(
@@ -142,15 +145,14 @@ try {
         `employees/${e.id}`,
         "PATCH",
         { ...body, status: "inactive", revision: e.revision },
-        manager,
+        admin,
       )
     ).status,
     200,
   );
   console.log(
-    "PASS: scoped discovery, repeated refresh deduplication, no automatic activation/reactivation, manager acceptance, duplicate/cross-store denial, and draft endpoint authorization. Fictional demo only.",
+    "PASS: retired store-profile denial, IDAD Admin all-store discovery, repeated refresh deduplication, no automatic activation/reactivation, duplicate denial, and draft endpoint authorization. Fictional demo only.",
   );
 } finally {
-  await call("logout", "POST", {}, manager);
   await call("logout", "POST", {}, admin);
 }

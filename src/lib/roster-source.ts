@@ -1,10 +1,16 @@
 import { mode, stores } from "./config";
+import {
+  mergeCurrentDayRoster,
+  readCurrentDayRoster,
+} from "./current-day-roster";
 import { readGoogleRoster } from "./google-roster";
 import { Problem } from "./model";
 // The adapter endpoint must return a complete, validated roster envelope; its own
 // credentials should grant read access only to the source workbook (Google ACLs
 // cannot be scoped to an individual tab). The adapter reads only the import tab.
-export async function fetchRoster() {
+export async function fetchRoster(
+  options: { includeCurrentDay?: boolean } = {},
+) {
   if (mode() === "demo")
     return {
       source: "fictional-roster",
@@ -45,8 +51,13 @@ export async function fetchRoster() {
         },
       ],
     };
-  if (process.env.PORTAL_ROSTER_SOURCE === "google-sheets")
-    return readGoogleRoster(stores());
+  if (process.env.PORTAL_ROSTER_SOURCE === "google-sheets") {
+    const enabled = stores();
+    const baseline = await readGoogleRoster(enabled);
+    if (!options.includeCurrentDay) return baseline;
+    const current = await readCurrentDayRoster(enabled);
+    return mergeCurrentDayRoster(baseline, current);
+  }
   const url = process.env.PORTAL_ROSTER_URL;
   if (!url || !process.env.PORTAL_ROSTER_TOKEN)
     throw new Problem(503, "Read-only roster connection is not configured.");

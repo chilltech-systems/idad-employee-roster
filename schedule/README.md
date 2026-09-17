@@ -22,7 +22,7 @@ In the portal, choose a store → **Schedule preview** → **Validate and export
 
 Ready full exports are stored by workbook/store/week in production sync state. Scoped tests use a separate key, so omissions cannot replace a complete store snapshot. Invalid attempts cannot replace either accepted snapshot. Stable shift IDs retain workbook/tab/row/slot/date provenance; edits replace revisions and deleted shifts disappear from the next complete snapshot.
 
-Download JSON contains validated shifts from the configured schedule target. It does not update a legacy `Shift export` tab, labor PDFs, or downstream reporting workflows. A larger system should consume the JSON contract and independently verify its downstream import.
+Download JSON contains validated shifts from the configured schedule target. It does not update a legacy `Shift export` tab or a schedule database. The protected `POST /api/v1/reporting/draft-exports/validate` machine endpoint can revalidate complete, zero-exclusion store snapshots for the weekly Texas labor-report runner. It requires a dedicated report-only bearer token, blocks pending POS identities and issues, and returns the accepted JSON used by the report. PDF generation and verification remain downstream responsibilities.
 
 ## Recovery
 

@@ -40,6 +40,7 @@ export type Employee = EmployeeInput & {
   updatedBy: string;
 };
 export type Account = { id: string; role: "store" | "admin"; storeId?: string };
+export const ADMIN_ACCOUNT_ID = "IDADadmin";
 export type Access = {
   id: string;
   kind: "credential" | "session" | "attempt";
@@ -91,6 +92,8 @@ export type RosterCandidate = {
   posName: string;
   firstSeen: string;
   lastSeen: string;
+  archivedAt?: string;
+  archivedBy?: string;
 };
 export type State = {
   employees: Employee[];
@@ -134,12 +137,12 @@ export const identityKey = (e: {
 }) => JSON.stringify([e.storeId, e.posSource, e.posEmployeeId]);
 export const normalizedName = (s: string) =>
   s.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US");
-export function canAccess(a: Account, storeId: string) {
-  return a.role === "admin" || a.storeId === storeId;
+export function canAccess(a: Account, _storeId: string) {
+  return a.role === "admin";
 }
 export function requireStore(a: Account, storeId: string) {
   if (!canAccess(a, storeId))
-    throw new Problem(403, "This account cannot access that store.");
+    throw new Problem(403, "IDAD Admin Profile access required.");
 }
 export function requireAdmin(a: Account) {
   if (a.role !== "admin")

@@ -437,6 +437,7 @@ export type DraftExport = {
   storeId: string;
   fingerprint: string;
   at: string;
+  overnight: { row: number; day: number }[];
   omitted: { row: number; date: string; reason: string }[];
   snapshot: ReturnType<typeof exportShifts>;
 };
@@ -492,6 +493,7 @@ export function validateDraftExport(
     storeId,
     fingerprint,
     at: same ? previous.at : new Date().toISOString(),
+    overnight: overnight.map((entry) => ({ ...entry })),
     omitted: extracted.omitted,
     snapshot,
   };

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { seed } from "../src/lib/seed";
+import { credential, seed } from "../src/lib/seed";
 import { FileRepository } from "../src/lib/repository";
 import { displayName, type Account } from "../src/lib/model";
 import {
@@ -56,69 +56,58 @@ const roster = () => ({
     },
   ],
 });
-test("store reads and writes deny cross-store IDs, including exports", () => {
+test("retired store accounts are denied while IDAD Admin can use every store", () => {
   const s = seed();
-  assert.ok(
-    listEmployees(s, manager).every((e) => e.storeId === manager.storeId),
-  );
-  assert.throws(() => listEmployees(s, manager, "TX-DEMO-2"), /cannot access/);
-  assert.throws(() => rosterCsv(s, manager, "TX-DEMO-2"), /cannot access/);
-  assert.throws(
-    () => saveEmployee(s, manager, { ...input, storeId: "TX-DEMO-2" }),
-    /cannot access/,
-  );
-  assert.throws(
-    () => saveEmployee(s, manager, { ...input, revision: 1 }, "demo-7"),
-    /cannot access/,
-  );
+  assert.equal(listEmployees(s, manager).length, 0);
+  assert.throws(() => rosterCsv(s, manager, "TX-DEMO-1"), /Admin Profile/);
+  assert.throws(() => saveEmployee(s, manager, input), /Admin Profile/);
   assert.equal(listEmployees(s, admin).length, 7);
+  assert.match(rosterCsv(s, admin, "TX-DEMO-2"), /Store ID/);
 });
 test("new hire is schedulable, leading zero ID preserved, overrides clear to default", () => {
   const s = seed();
-  const e = saveEmployee(s, manager, input);
+  const e = saveEmployee(s, admin, input);
   assert.equal(e.verification, "awaiting");
   assert.equal(e.posEmployeeId, "000777");
   assert.equal(e.displayName, "Jamie C.");
-  assert.ok(
-    rosterRows(s, manager, manager.storeId!).some((x) => x.id === e.id),
-  );
+  assert.ok(rosterRows(s, admin, input.storeId).some((x) => x.id === e.id));
   const updated = saveEmployee(
     s,
-    manager,
+    admin,
     { ...input, preferredName: "JC", revision: e.revision },
     e.id,
   );
   assert.equal(updated.displayName, "JC");
   assert.equal(
-    saveEmployee(s, manager, { ...input, revision: updated.revision }, e.id)
+    saveEmployee(s, admin, { ...input, revision: updated.revision }, e.id)
       .displayName,
     "Jamie C.",
   );
 });
 test("same name does not merge records; dropdowns disambiguate", () => {
   const s = seed();
-  saveEmployee(s, manager, input);
-  saveEmployee(s, manager, { ...input, posEmployeeId: "000778" });
+  saveEmployee(s, admin, input);
+  saveEmployee(s, admin, { ...input, posEmployeeId: "000778" });
   assert.equal(s.employees.filter((e) => e.firstName === "Jamie").length, 2);
   assert.ok(
-    rosterRows(s, manager, manager.storeId!)
+    rosterRows(s, admin, input.storeId)
       .filter((e) => e.firstName === "Jamie")
       .every((e) => e.dropdownLabel.includes(e.posEmployeeId)),
   );
 });
 test("duplicate store/source/ID rejected and same ID at another store remains separate", () => {
   const s = seed();
-  saveEmployee(s, manager, input);
-  assert.throws(() => saveEmployee(s, manager, input), /already exists/);
+  saveEmployee(s, admin, input);
+  assert.throws(() => saveEmployee(s, admin, input), /already exists/);
   assert.doesNotThrow(() =>
     saveEmployee(s, admin, { ...input, storeId: "TX-DEMO-2" }),
   );
 });
 test("stale revisions fail; existing identity correction requires admin and reason", () => {
   const s = seed();
-  const e = saveEmployee(s, manager, input);
+  const e = saveEmployee(s, admin, input);
   assert.throws(
-    () => saveEmployee(s, manager, { ...input, revision: 99 }, e.id),
+    () => saveEmployee(s, admin, { ...input, revision: 99 }, e.id),
     /changed/,
   );
   assert.throws(
@@ -129,7 +118,7 @@ test("stale revisions fail; existing identity correction requires admin and reas
         { ...input, posName: "Other Name", revision: 1, reason: "Correction" },
         e.id,
       ),
-    /Administrator/,
+    /Admin Profile/,
   );
   assert.throws(
     () =>
@@ -158,7 +147,7 @@ test("stale revisions fail; existing identity correction requires admin and reas
 });
 test("historical store assignments cannot be moved", () => {
   const s = seed();
-  const e = saveEmployee(s, manager, input);
+  const e = saveEmployee(s, admin, input);
   assert.throws(
     () =>
       saveEmployee(
@@ -172,12 +161,10 @@ test("historical store assignments cannot be moved", () => {
 });
 test("inactive records retain identities and history; active exports exclude them", () => {
   const s = seed();
-  const e = saveEmployee(s, manager, input);
-  saveEmployee(s, manager, { ...input, status: "inactive", revision: 1 }, e.id);
+  const e = saveEmployee(s, admin, input);
+  saveEmployee(s, admin, { ...input, status: "inactive", revision: 1 }, e.id);
   assert.ok(s.employees.some((x) => x.id === e.id));
-  assert.ok(
-    !rosterRows(s, manager, manager.storeId!).some((x) => x.id === e.id),
-  );
+  assert.ok(!rosterRows(s, admin, input.storeId).some((x) => x.id === e.id));
   assert.equal(s.audit.length, 2);
 });
 test("roster normalizes whitespace/case without overriding preferences", () => {
@@ -222,37 +209,47 @@ test("manual verification requires reason and later contradiction reopens review
   assert.equal(s.employees[0].verification, "review");
   assert.equal(s.employees[0].manualReason, undefined);
 });
-test("sessions are hashed, expire and revoke on logout or code reset", () => {
+test("only IDAD Admin can sign in; sessions are hashed and revocable", () => {
   const s = seed();
-  const signed = login(s, { accountId: manager.id, code: "demo-store" });
+  s.access.push(
+    credential(manager.id, "store", "retired-store-code", manager.storeId),
+  );
+  assert.equal(
+    login(s, {
+      accountId: manager.id,
+      code: "retired-store-code",
+    }).status,
+    401,
+  );
+  const signed = login(s, { accountId: admin.id, code: "demo-admin" });
   assert.ok(signed.token);
-  assert.equal(currentAccount(s, signed.token).id, manager.id);
+  assert.equal(currentAccount(s, signed.token).id, admin.id);
   assert.ok(!JSON.stringify(s).includes(signed.token!));
   logout(s, signed.token!);
   assert.throws(() => currentAccount(s, signed.token), /ended/);
-  const token = login(s, { accountId: manager.id, code: "demo-store" }).token!;
+  const token = login(s, { accountId: admin.id, code: "demo-admin" }).token!;
   resetCode(s, admin, {
-    accountId: manager.id,
+    accountId: admin.id,
     code: "new-test-code",
     reason: "Test reset",
   });
   assert.throws(() => currentAccount(s, token), /ended/);
   const newToken = login(s, {
-    accountId: manager.id,
+    accountId: admin.id,
     code: "new-test-code",
   }).token!;
   s.access.find((x) => x.kind === "session")!.expiresAt = 0;
   assert.throws(() => currentAccount(s, newToken), /ended/);
 });
-test("failed login limits are shared state and reset cannot be performed by stores", () => {
+test("failed login limits are shared and retired store profiles cannot be reset", () => {
   const s = seed();
+  s.access.push(
+    credential(manager.id, "store", "retired-store-code", manager.storeId),
+  );
   for (let i = 0; i < 5; i++)
-    assert.equal(
-      login(s, { accountId: manager.id, code: "wrong" }).status,
-      401,
-    );
+    assert.equal(login(s, { accountId: admin.id, code: "wrong" }).status, 401);
   assert.equal(
-    login(s, { accountId: manager.id, code: "demo-store" }).status,
+    login(s, { accountId: admin.id, code: "demo-admin" }).status,
     429,
   );
   assert.throws(
@@ -264,11 +261,20 @@ test("failed login limits are shared state and reset cannot be performed by stor
       }),
     /Administrator/,
   );
+  assert.throws(
+    () =>
+      resetCode(s, admin, {
+        accountId: manager.id,
+        code: "x",
+        reason: "retired",
+      }),
+    /retired/,
+  );
 });
 test("CSV preserves compatibility headers and neutralizes spreadsheet formulas", () => {
   const s = seed();
-  saveEmployee(s, manager, { ...input, preferredName: '=HYPERLINK("x")' });
-  const csv = rosterCsv(s, manager, manager.storeId!);
+  saveEmployee(s, admin, { ...input, preferredName: '=HYPERLINK("x")' });
+  const csv = rosterCsv(s, admin, input.storeId);
   assert.ok(csv.startsWith('"Store ID","Employee name","Employee ID"'));
   assert.ok(csv.includes('"\'=HYPERLINK(""x"")"'));
 });
@@ -280,9 +286,9 @@ test("file transactions serialize concurrent edits and never persist partial fai
   const a = new FileRepository(file),
     b = new FileRepository(file);
   await Promise.all([
-    a.transact((s) => saveEmployee(s, manager, input)),
+    a.transact((s) => saveEmployee(s, admin, input)),
     b.transact((s) =>
-      saveEmployee(s, manager, { ...input, posEmployeeId: "7772" }),
+      saveEmployee(s, admin, { ...input, posEmployeeId: "7772" }),
     ),
   ]);
   const before = await readFile(file, "utf8");

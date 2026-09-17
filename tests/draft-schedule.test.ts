@@ -14,6 +14,11 @@ import {
   BINDINGS_ID,
   draftClient,
 } from "../src/lib/google-draft";
+import {
+  requireReportingExportToken,
+  validateReportingDraftExports,
+} from "../src/lib/reporting-draft-export";
+import { createHash } from "node:crypto";
 import { seed } from "../src/lib/seed";
 import type { Employee } from "../src/lib/model";
 function employee(id = "one"): Employee {
@@ -291,4 +296,88 @@ test("pending assignments sync names-only labels and hidden IDs, export schedule
   const inactive = planDraftSync(g, [a, b]);
   assert.ok(inactive.roster.some((r) => r[1] === b.id));
   assert.equal(inactive.active, 1);
+});
+
+test("report-only token authentication fails closed without exposing the configured digest", () => {
+  const token = "reporting-fixture-token-that-is-long-enough";
+  const digest = createHash("sha256").update(token).digest("hex");
+  assert.doesNotThrow(() =>
+    requireReportingExportToken(`Bearer ${token}`, digest),
+  );
+  assert.throws(
+    () =>
+      requireReportingExportToken(
+        "Bearer wrong-token-that-is-long-enough-123",
+        digest,
+      ),
+    /authorization failed/,
+  );
+  assert.throws(
+    () => requireReportingExportToken(`Bearer ${token}`, undefined),
+    /not configured/,
+  );
+});
+
+test("reporting validation records only complete POS-backed exports and is idempotent", () => {
+  const g = grid();
+  const state = seed();
+  state.employees = [employee()];
+  const request = { weekStart: "2026-09-06", storeIds: ["TX-149"] };
+  const first = validateReportingDraftExports(g, state, request);
+  assert.equal(first.results[0].status, "ready");
+  assert.equal(first.results[0].export?.scope, "complete-store");
+  assert.deepEqual(first.results[0].export?.overnight, []);
+  assert.equal(state.audit.at(-1)?.actor, "reporting-service");
+  const auditCount = state.audit.length;
+  const second = validateReportingDraftExports(g, state, request);
+  assert.equal(second.results[0].status, "ready");
+  assert.equal(state.audit.length, auditCount);
+
+  const accepted = structuredClone(state.sync.draftExports);
+  state.employees[0].posIdentityPending = true;
+  state.employees[0].posEmployeeId = "pending:one";
+  state.employees[0].verification = "awaiting";
+  const blocked = validateReportingDraftExports(g, state, request);
+  assert.equal(blocked.results[0].status, "blocked");
+  assert.match(blocked.results[0].issues.join(" "), /POS verification pending/);
+  assert.deepEqual(state.sync.draftExports, accepted);
+});
+
+test("reporting validation reuses reviewed overnight rules only for the accepted store week", () => {
+  const g = grid();
+  const state = seed();
+  state.employees = [employee()];
+  set(g, MAIN_ID, 22, 16, 22 / 24);
+  set(g, MAIN_ID, 22, 17, 6 / 24);
+  const reviewed = validateDraftExport(
+    g,
+    state.employees,
+    "TX-149",
+    undefined,
+    [],
+    [{ row: 22, day: 0 }],
+  );
+  recordDraftExport(state, reviewed);
+  const result = validateReportingDraftExports(g, state, {
+    weekStart: "2026-09-06",
+    storeIds: ["TX-149"],
+  });
+  assert.equal(result.results[0].status, "ready");
+  assert.equal(result.results[0].export?.snapshot.shifts[0].minutes, 480);
+
+  set(g, MAIN_ID, 1, 16, 46278); // 2026-09-13
+  const nextWeek = validateReportingDraftExports(g, state, {
+    weekStart: "2026-09-13",
+    storeIds: ["TX-149"],
+  });
+  assert.equal(nextWeek.results[0].status, "blocked");
+  assert.match(nextWeek.results[0].issues.join(" "), /End must follow start/);
+  assert.throws(
+    () =>
+      validateReportingDraftExports(g, state, {
+        weekStart: "2026-09-06",
+        storeIds: ["TX-149"],
+      }),
+    /does not match requested week/,
+  );
 });

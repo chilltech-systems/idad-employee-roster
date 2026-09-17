@@ -23,6 +23,8 @@ import {
   ArrowLeft,
   ClipboardList,
   Settings2,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import AllEmployees from "./AllEmployees";
 import DraftSchedule from "./DraftSchedule";
@@ -34,7 +36,9 @@ import type {
   Store,
   RosterCandidate,
 } from "@/lib/model";
+import { ADMIN_ACCOUNT_ID } from "@/lib/model";
 type Row = Employee & { displayName: string };
+type CandidateRow = RosterCandidate & { inCurrentRoster: boolean };
 type Sync = {
   lastSuccess?: string;
   lastAttempt?: string;
@@ -79,15 +83,15 @@ function Badge({ value }: { value: Employee["verification"] }) {
 }
 export default function Portal() {
   const loadVersion = useRef(0);
-  const [candidates, setCandidates] = useState<
-    (RosterCandidate & { inCurrentRoster: boolean })[]
-  >([]);
+  const [candidates, setCandidates] = useState<CandidateRow[]>([]);
+  const [archivedCandidates, setArchivedCandidates] = useState<CandidateRow[]>(
+    [],
+  );
   const [selectedCandidate, setSelectedCandidate] = useState<
     RosterCandidate | undefined
   >();
   const [account, setAccount] = useState<Account | null>(null),
     [allStores, setAllStores] = useState<Store[]>([]),
-    [loginState, setLoginState] = useState(""),
     [storeId, setStoreId] = useState(""),
     [demo, setDemo] = useState(false),
     [production, setProduction] = useState(false),
@@ -102,9 +106,9 @@ export default function Portal() {
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState(false),
+    [busyCandidate, setBusyCandidate] = useState<string>(),
     [loaded, setLoaded] = useState(false);
-  const [loginId, setLoginId] = useState(""),
-    [code, setCode] = useState("");
+  const [code, setCode] = useState("");
   useEffect(() => {
     async function init() {
       try {
@@ -114,10 +118,8 @@ export default function Portal() {
           production: boolean;
         }>("login-options");
         setAllStores(options.stores);
-        setLoginState(options.stores[0]?.state || "");
         setDemo(options.demo);
         setProduction(options.production === true);
-        setLoginId(options.stores[0]?.id || "");
         try {
           const me = await api<{ account: Account }>("me");
           setAccount(me.account);
@@ -140,17 +142,29 @@ export default function Portal() {
     const version = ++loadVersion.current;
     setLoaded(false);
     try {
-      const [employees, info, history, discoveries] = await Promise.all([
-        api<Row[]>("employees?storeId=" + encodeURIComponent(storeId)),
-        api<Sync>("sync"),
-        api<Audit[]>("audit"),
-        api<(RosterCandidate & { inCurrentRoster: boolean })[]>(
-          "candidates?storeId=" + encodeURIComponent(storeId),
-        ),
-      ]);
+      const allStoreReview = account.role === "admin" && view === "review";
+      const [employees, info, history, discoveries, archived] =
+        await Promise.all([
+          api<Row[]>(
+            allStoreReview
+              ? "employees"
+              : "employees?storeId=" + encodeURIComponent(storeId),
+          ),
+          api<Sync>("sync"),
+          api<Audit[]>("audit"),
+          api<CandidateRow[]>(
+            allStoreReview
+              ? "candidates"
+              : "candidates?storeId=" + encodeURIComponent(storeId),
+          ),
+          allStoreReview
+            ? api<CandidateRow[]>("candidates?status=archived")
+            : Promise.resolve([] as CandidateRow[]),
+        ]);
       if (version !== loadVersion.current) return;
       setRows(employees);
       setCandidates(discoveries);
+      setArchivedCandidates(archived);
       setSync(info);
       setAudit(history);
       setLoaded(true);
@@ -159,7 +173,7 @@ export default function Portal() {
       setRows([]);
       setError((e as Error).message);
     }
-  }, [account, storeId]);
+  }, [account, storeId, view]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -169,7 +183,7 @@ export default function Portal() {
     setError("");
     try {
       const result = await api<{ account: Account }>("login", "POST", {
-        accountId: loginId,
+        accountId: ADMIN_ACCOUNT_ID,
         code,
       });
       setAccount(result.account);
@@ -207,6 +221,42 @@ export default function Portal() {
     } finally {
       await load();
       setBusy(false);
+    }
+  }
+  async function archiveReview(candidate: CandidateRow) {
+    if (
+      !window.confirm(
+        `Archive the review for ${candidate.posName}? This records that you reviewed it without creating or linking an employee.`,
+      )
+    )
+      return;
+    setBusyCandidate(candidate.id);
+    setError("");
+    setNotice("");
+    try {
+      await api(`candidates/${candidate.id}/archive`, "POST", {});
+      setNotice(
+        `${candidate.posName} was archived as reviewed. No employee record was created.`,
+      );
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyCandidate(undefined);
+    }
+  }
+  async function restoreReview(candidate: CandidateRow) {
+    setBusyCandidate(candidate.id);
+    setError("");
+    setNotice("");
+    try {
+      await api(`candidates/${candidate.id}/restore`, "POST", {});
+      setNotice(`${candidate.posName} was returned to Identity Review.`);
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusyCandidate(undefined);
     }
   }
   const store = allStores.find((s) => s.id === storeId);
@@ -252,7 +302,7 @@ export default function Portal() {
             <span className="eyebrow">IDAD EMPLOYEE REPORT DIRECTORY</span>
             <h2>Welcome back</h2>
             <p className="muted">
-              Select your store and enter your access code.
+              Sign in with the IDAD Admin Profile to manage every store.
             </p>
             {error && (
               <p role="alert" className="alert">
@@ -260,40 +310,8 @@ export default function Portal() {
               </p>
             )}
             <label>
-              State
-              <select
-                value={loginState}
-                onChange={(e) => {
-                  const state = e.target.value;
-                  setLoginState(state);
-                  setLoginId(
-                    allStores.find((store) => store.state === state)?.id ||
-                      "IDADadmin",
-                  );
-                }}
-              >
-                {[...new Set(allStores.map((store) => store.state))].map(
-                  (state) => (
-                    <option key={state}>{state}</option>
-                  ),
-                )}
-              </select>
-            </label>
-            <label>
-              Store or administrator
-              <select
-                value={loginId}
-                onChange={(e) => setLoginId(e.target.value)}
-              >
-                {allStores
-                  .filter((s) => s.state === loginState)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.id} · {s.name}
-                    </option>
-                  ))}
-                <option value="IDADadmin">IDADadmin · All stores</option>
-              </select>
+              Profile
+              <input value="IDADadmin · All stores" readOnly />
             </label>
             <label>
               Access code
@@ -313,8 +331,6 @@ export default function Portal() {
               <div className="demo-note">
                 <b>Local demo · fictional employees</b>
                 <p>
-                  Store code: <code>demo-store</code>
-                  <br />
                   Administrator code: <code>demo-admin</code>
                 </p>
               </div>
@@ -332,7 +348,7 @@ export default function Portal() {
         <div className="workspace-label">TEAM MANAGEMENT</div>
         <nav>
           {[
-            ["employees", "Employees", Users],
+            ["employees", "Store Rosters", Users],
             ["review", "Identity review", ShieldCheck],
             ["exports", "Exports & sync", Download],
             ["schedule", "Schedule preview", ClipboardList],
@@ -340,7 +356,7 @@ export default function Portal() {
             ...(account.role === "admin"
               ? [
                   ["all", "All Employees", Users],
-                  ["admin", "Administration", Settings2],
+                  ["admin", "IDAD Admin Profile", Settings2],
                 ]
               : []),
           ].map(([key, title, Icon]) => {
@@ -368,14 +384,10 @@ export default function Portal() {
           })}
         </nav>
         <div className="sidebar-bottom">
-          <div className="account-avatar">
-            {account.role === "admin" ? "AD" : "TX"}
-          </div>
+          <div className="account-avatar">AD</div>
           <div>
             <strong>{account.id}</strong>
-            <small>
-              {account.role === "admin" ? "Administrator" : "Store account"}
-            </small>
+            <small>IDAD Administrator</small>
           </div>
           <button
             className="icon-button"
@@ -420,7 +432,9 @@ export default function Portal() {
               <span className="eyebrow">
                 {view === "all" && !editor
                   ? "ALL STORES / EMPLOYEE DIRECTORY"
-                  : `${store?.state.toUpperCase()} / ${store?.brand}`}
+                  : view === "review" && !editor
+                    ? "ALL STORES / IDENTITY REVIEW"
+                    : `${store?.state.toUpperCase()} / ${store?.brand}`}
               </span>
               <h1>
                 {editor
@@ -436,7 +450,7 @@ export default function Portal() {
                           : view === "schedule"
                             ? "Schedule preview"
                             : view === "admin"
-                              ? "Administration"
+                              ? "IDAD Admin Profile"
                               : "Your team"}
               </h1>
               <p className="muted">
@@ -447,11 +461,11 @@ export default function Portal() {
                     : view === "history"
                       ? "Changes recorded by store and administrator accounts."
                       : view === "admin"
-                        ? "Manage shared account access."
+                        ? "Manage the portal's only active access profile."
                         : "Keep employee details current, from first shift onward."}
               </p>
             </div>
-            {(view !== "all" || editor) && (
+            {((view !== "all" && view !== "review") || editor) && (
               <label className="store-picker">
                 <span>
                   <Building2 size={16} /> Store
@@ -521,14 +535,19 @@ export default function Portal() {
                           <div>
                             <strong>{c.posName}</strong>
                             <p className="muted">
+                              {c.storeId} ·{" "}
+                              {allStores.find((s) => s.id === c.storeId)
+                                ?.name || "Store"}
+                              {" · "}
                               {c.inCurrentRoster
                                 ? "Present in the latest roster"
                                 : "Seen previously; absent from the latest roster"}
                             </p>
                           </div>
-                          {account.role === "admin" && (
+                          <div className="candidate-actions">
                             <button
                               className="secondary"
+                              disabled={busyCandidate === c.id}
                               onClick={() => {
                                 setSelectedCandidate(c);
                                 setView("all");
@@ -536,18 +555,75 @@ export default function Portal() {
                             >
                               Link existing employee
                             </button>
-                          )}
-                          <button
-                            className="secondary"
-                            onClick={() => {
-                              setSelectedCandidate(c);
-                              setEditor("new");
-                            }}
-                          >
-                            Review and add
-                          </button>
+                            <button
+                              className="secondary"
+                              disabled={busyCandidate === c.id}
+                              onClick={() => {
+                                setSelectedCandidate(c);
+                                setStoreId(c.storeId);
+                                setEditor("new");
+                              }}
+                            >
+                              Review as new employee
+                            </button>
+                            <button
+                              className="text-link"
+                              disabled={busyCandidate === c.id}
+                              onClick={() => void archiveReview(c)}
+                            >
+                              <Archive size={16} />
+                              {busyCandidate === c.id
+                                ? "Archiving…"
+                                : "Archive review"}
+                            </button>
+                          </div>
                         </div>
                       ))}
+                    </section>
+                  )}
+                  {view === "review" && archivedCandidates.length > 0 && (
+                    <section className="panel card archived-reviews">
+                      <details>
+                        <summary>
+                          Archived reviews ({archivedCandidates.length})
+                        </summary>
+                        <p>
+                          These POS identities were reviewed without creating or
+                          linking an employee record.
+                        </p>
+                        {archivedCandidates.map((candidate) => (
+                          <div key={candidate.id} className="panel-title">
+                            <div>
+                              <strong>{candidate.posName}</strong>
+                              <p className="muted">
+                                {candidate.storeId} ·{" "}
+                                {allStores.find(
+                                  (store) => store.id === candidate.storeId,
+                                )?.name || "Store"}
+                                {" · Archived "}
+                                {candidate.archivedAt
+                                  ? new Date(
+                                      candidate.archivedAt,
+                                    ).toLocaleString()
+                                  : "previously"}
+                                {candidate.archivedBy
+                                  ? ` by ${candidate.archivedBy}`
+                                  : ""}
+                              </p>
+                            </div>
+                            <button
+                              className="secondary"
+                              disabled={busyCandidate === candidate.id}
+                              onClick={() => void restoreReview(candidate)}
+                            >
+                              <RotateCcw size={16} />
+                              {busyCandidate === candidate.id
+                                ? "Restoring…"
+                                : "Return to review"}
+                            </button>
+                          </div>
+                        ))}
+                      </details>
                     </section>
                   )}
                   <div className="stats">
@@ -606,8 +682,9 @@ export default function Portal() {
                             : "Employee directory"}
                         </h2>
                         <span>
-                          {store?.id} <span className="dot">·</span>{" "}
-                          {rows.length} total records
+                          {view === "review" ? "All stores" : store?.id}{" "}
+                          <span className="dot">·</span> {rows.length} total
+                          records
                         </span>
                       </div>
                       <button
@@ -664,7 +741,10 @@ export default function Portal() {
                               <td>
                                 <button
                                   className="employee-cell"
-                                  onClick={() => setEditor(e)}
+                                  onClick={() => {
+                                    setStoreId(e.storeId);
+                                    setEditor(e);
+                                  }}
                                 >
                                   <span className="avatar">
                                     {e.firstName[0]}
@@ -698,7 +778,10 @@ export default function Portal() {
                                 <button
                                   aria-label={`Edit ${e.displayName}`}
                                   className="icon-button"
-                                  onClick={() => setEditor(e)}
+                                  onClick={() => {
+                                    setStoreId(e.storeId);
+                                    setEditor(e);
+                                  }}
                                 >
                                   <ChevronRight size={18} />
                                 </button>
@@ -717,8 +800,9 @@ export default function Portal() {
                           </h3>
                           {loaded && (
                             <p>
-                              Adjust your search or add an employee to this
-                              store.
+                              {view === "review"
+                                ? "No employee identities currently need review."
+                                : "Adjust your search or add an employee to this store."}
                             </p>
                           )}
                         </div>
@@ -872,10 +956,9 @@ export default function Portal() {
               )}
               {view === "admin" && account.role === "admin" && (
                 <AccessEditor
-                  stores={allStores}
                   onSaved={() =>
                     setNotice(
-                      "Access code reset. Existing sessions for that account were revoked.",
+                      "IDAD Admin access code updated. Existing sessions were revoked.",
                     )
                   }
                 />
@@ -914,8 +997,13 @@ function EmployeeEditor({
 }) {
   const [saving, setSaving] = useState(false),
     [error, setError] = useState("");
-  const [first, setFirst] = useState(employee?.firstName || ""),
-    [last, setLast] = useState(employee?.lastName || ""),
+  const candidateName = candidate?.posName.trim().split(/\s+/) || [];
+  const [first, setFirst] = useState(
+      employee?.firstName || candidateName[0] || "",
+    ),
+    [last, setLast] = useState(
+      employee?.lastName || candidateName.slice(1).join(" "),
+    ),
     [preferred, setPreferred] = useState(employee?.preferredName || "");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1132,13 +1220,7 @@ function EmployeeEditor({
     </>
   );
 }
-function AccessEditor({
-  stores,
-  onSaved,
-}: {
-  stores: Store[];
-  onSaved: () => void;
-}) {
+function AccessEditor({ onSaved }: { onSaved: () => void }) {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -1159,25 +1241,17 @@ function AccessEditor({
   }
   return (
     <form className="panel card access-form" onSubmit={submit}>
-      <h2>Reset a shared access code</h2>
+      <h2>Update IDAD Admin access</h2>
       <p>
-        Resetting a code signs out existing sessions for that account. Use the
-        approved store-code convention.
+        This is the only active portal profile. Updating its code signs out all
+        existing IDAD Admin sessions.
       </p>
       {error && (
         <p className="alert" role="alert">
           {error}
         </p>
       )}
-      <label>
-        Account
-        <select name="accountId">
-          {stores.map((s) => (
-            <option key={s.id}>{s.id}</option>
-          ))}
-          <option>IDADadmin</option>
-        </select>
-      </label>
+      <input name="accountId" type="hidden" value={ADMIN_ACCOUNT_ID} />
       <label>
         New access code
         <input

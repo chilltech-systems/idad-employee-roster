@@ -263,6 +263,11 @@ export function linkCandidate(s: State, a: Account, id: string, body: unknown) {
     c = s.sync.candidates?.find((c) => c.id === p.candidateId);
   if (!c || c.posEmployeeId !== p.posEmployeeId || c.posName !== p.posName)
     throw new Problem(409, "POS candidate changed. Reload before linking.");
+  if (c.archivedAt)
+    throw new Problem(
+      409,
+      "This review is archived. Return it to review before linking the employee.",
+    );
   if (
     s.employees.some(
       (e) =>

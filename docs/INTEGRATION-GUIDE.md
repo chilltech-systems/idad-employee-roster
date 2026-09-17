@@ -19,13 +19,14 @@ Browser clients should talk to the existing platform origin. That platform can p
 
 The primary integration contract is `docs/openapi.json`. The most important boundaries are:
 
-- Session authentication and logout through the API.
+- IDAD Admin Profile authentication and logout through the API; single-store profiles are retired.
 - Store-scoped employee and roster operations.
 - Administrator-only shared profiles and explicit linking.
 - Revision tokens on mutations to prevent stale writes.
 - Extended JSON roster exports carrying stable directory IDs.
 - Compatibility CSV for legacy consumers that cannot yet accept extended JSON.
 - A protected cron endpoint for the daily refresh/schedule cycle.
+- A report-only bearer-token endpoint that validates the live copied schedule and returns complete accepted shift exports without granting employee-management access.
 
 Treat the compatibility CSV as a transition format. New integrations should use JSON and retain the directory ID, store ID, POS source, POS employee ID, shared person ID, assignment status, and pending-POS flag as separate fields.
 
@@ -41,7 +42,7 @@ Use a dedicated authenticated workflow that requests the JSON roster for one sto
 
 ### 3. Replace the roster source
 
-Implement the contract used by `src/lib/roster-source.ts`. The adapter must return a complete, bounded snapshot, reject malformed or duplicate store/source/POS identities, and remain read-only. The refresh service will update verification and queue unknown identities for review; it must not infer links from names.
+Implement the contract used by `src/lib/roster-source.ts`. The adapter must return a complete, bounded snapshot, reject malformed or duplicate store/source/POS identities, and remain read-only. The refresh service will update verification and queue unknown identities for review; it must not infer links from names. Administrators may archive a reviewed candidate without creating or linking an employee; later refreshes preserve that decision until the candidate is explicitly returned to review.
 
 ### 4. Replace the schedule adapter
 
@@ -57,26 +58,30 @@ If the larger system must own the UI and runtime, move these layers together:
 
 Do not copy only the UI components; the server-side permission, revision, transaction, and audit rules are the safety boundary.
 
+### 6. Weekly Texas labor-report consumer
+
+The local IDAD Data Gateway calls `POST /api/v1/reporting/draft-exports/validate` with the requested Sunday and active Texas store IDs. Configure only the SHA-256 digest of the dedicated token as `PORTAL_REPORT_EXPORT_TOKEN_SHA256`; the caller retains the raw `IDAD_DIRECTORY_REPORT_TOKEN`. The endpoint does not accept exclusions, does not use an administrator session, and cannot manage employees. A store is returned as blocked when any populated shift has an exception, no shift exists, or POS verification remains pending. Ready responses include the exact accepted `DraftExport` fingerprint and revision for downstream reconciliation.
+
 ## Data mapping checklist
 
 Before implementation, map every external field to one of these concepts:
 
-| Concept | Meaning |
-| --- | --- |
-| `id` / directory ID | Permanent assignment identity owned by this service. |
-| `personId` | Shared person identity used for explicitly linked multi-store assignments. |
-| `storeId` | Destination store assignment; never inferred from a name. |
-| `posSource` | Namespace of the upstream POS identity. |
-| `posEmployeeId` | Store/source-specific external ID; it may be pending. |
-| `revision` | Concurrency token required for reviewed mutations. |
-| `status` | Active/inactive assignment state retained historically. |
+| Concept             | Meaning                                                                    |
+| ------------------- | -------------------------------------------------------------------------- |
+| `id` / directory ID | Permanent assignment identity owned by this service.                       |
+| `personId`          | Shared person identity used for explicitly linked multi-store assignments. |
+| `storeId`           | Destination store assignment; never inferred from a name.                  |
+| `posSource`         | Namespace of the upstream POS identity.                                    |
+| `posEmployeeId`     | Store/source-specific external ID; it may be pending.                      |
+| `revision`          | Concurrency token required for reviewed mutations.                         |
+| `status`            | Active/inactive assignment state retained historically.                    |
 
 ## Acceptance gates
 
 An integration is not complete until it verifies:
 
 1. Clean installation and all repository quality gates.
-2. Authentication, store scope, administrator scope, origin denial, and logout revocation.
+2. IDAD Admin-only authentication, retired single-store access denial, origin denial, and logout revocation.
 3. Database validators, transactions, least-privilege access, and backup/restore.
 4. A source snapshot with duplicate/malformed/truncation failures.
 5. One explicit new-identity review without name-based auto-linking.

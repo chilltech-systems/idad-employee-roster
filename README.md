@@ -1,18 +1,19 @@
 # IDAD Employee Roster
 
-IDAD Employee Roster is a production employee-directory service for maintaining stable employee identities across stores, POS systems, schedules, and reporting workflows. It combines a manager/admin web interface, a versioned HTTP API, MongoDB persistence, audited changes, Google roster ingestion, and guarded schedule-dropdown synchronization.
+IDAD Employee Roster is a production employee-directory service for maintaining stable employee identities across stores, POS systems, schedules, and reporting workflows. It combines a single-administrator web interface, a versioned HTTP API, MongoDB persistence, audited changes, Google roster ingestion, and guarded schedule-dropdown synchronization.
 
 The application runs as a standalone Next.js service today, but its boundaries are intentionally documented so it can also sit behind a larger operations platform, be called through a backend-for-frontend, or supply identity-backed roster data to existing scheduling and reporting systems.
 
 ## What it provides
 
-- Store-scoped manager access and administrator access.
+- One IDAD Admin Profile with access to every configured store; single-store login profiles are retired.
 - Stable directory IDs separate from store-specific POS employee IDs.
 - Multi-store profiles with retained inactive assignment history.
-- Explicit identity review and linking; names never trigger automatic merges.
+- Explicit identity review, audited archive/restore, and linking; names never trigger automatic merges.
 - Optimistic revision checks and immutable audit history.
 - Read-only roster discovery through a replaceable source adapter.
 - ID-backed schedule dropdowns and validated shift exports.
+- Report-only machine validation for complete weekly labor schedule exports.
 - Daily or administrator-triggered synchronization with shared leases.
 - OpenAPI 3.1 contract at [`docs/openapi.json`](docs/openapi.json).
 - Fictional local demo data and a comprehensive automated test suite.
@@ -21,12 +22,12 @@ No credentials, employee records, database exports, or private schedule contents
 
 ## Choose an integration pattern
 
-| Pattern | Best use | Boundary |
-| --- | --- | --- |
-| Standalone service | Fastest deployment with the included UI | Deploy the Next.js app and connect approved infrastructure through server-only environment variables. |
-| Existing platform module | Add roster pages to a larger portal | Keep this service behind the platform and proxy `/api/v1`; preserve its session, origin, authorization, and revision rules. |
-| Backend integration | Feed schedules, reporting, or identity workflows | Use the OpenAPI contract and extended JSON roster responses with permanent IDs. |
-| Adapter replacement | Connect another POS, database, or schedule product | Replace the source/draft adapters while retaining the domain model, authorization, audit, and validation layers. |
+| Pattern                  | Best use                                           | Boundary                                                                                                                    |
+| ------------------------ | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Standalone service       | Fastest deployment with the included UI            | Deploy the Next.js app and connect approved infrastructure through server-only environment variables.                       |
+| Existing platform module | Add roster pages to a larger portal                | Keep this service behind the platform and proxy `/api/v1`; preserve its session, origin, authorization, and revision rules. |
+| Backend integration      | Feed schedules, reporting, or identity workflows   | Use the OpenAPI contract and extended JSON roster responses with permanent IDs.                                             |
+| Adapter replacement      | Connect another POS, database, or schedule product | Replace the source/draft adapters while retaining the domain model, authorization, audit, and validation layers.            |
 
 Read the [integration guide](docs/INTEGRATION-GUIDE.md) before embedding the service. Configuration is documented in [configuration](docs/CONFIGURATION.md), security expectations in [security](SECURITY.md), and verification commands in [quality gates](docs/QUALITY-GATES.md).
 
@@ -77,6 +78,7 @@ The production-specific database name, runtime principal guard, Google workbook 
 - Retain inactive assignments and audit history.
 - Keep all secrets server-side and outside Git.
 - Do not treat a schedule sync, roster refresh, or API success as proof of downstream report delivery.
+- Store only the report token hash in the portal environment; keep the raw report token in the owner-only Data Gateway environment.
 - Validate a complete source-to-destination flow before connecting a production schedule or reporting pipeline.
 
 ## License and access

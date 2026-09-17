@@ -4,9 +4,8 @@ import { saveEmployee, rosterRows } from "../src/lib/service";
 import { exportShifts, laborPreview, replaceSnapshot } from "../src/lib/shifts";
 const state = seed();
 const account = {
-  id: "TX-DEMO-1",
-  role: "store" as const,
-  storeId: "TX-DEMO-1",
+  id: "IDADadmin",
+  role: "admin" as const,
 };
 const employee = saveEmployee(state, account, {
   storeId: "TX-DEMO-1",

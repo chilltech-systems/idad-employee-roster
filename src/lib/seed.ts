@@ -64,11 +64,7 @@ export function seed(): State {
   });
   return {
     employees,
-    access: [
-      credential("TX-DEMO-1", "store", "demo-store", "TX-DEMO-1"),
-      credential("TX-DEMO-2", "store", "demo-store", "TX-DEMO-2"),
-      credential("IDADadmin", "admin", "demo-admin"),
-    ],
+    access: [credential("IDADadmin", "admin", "demo-admin")],
     audit: [],
     sync: { version: 0 },
   };
