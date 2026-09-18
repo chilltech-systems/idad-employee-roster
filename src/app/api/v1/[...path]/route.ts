@@ -171,7 +171,7 @@ async function handler(
                 reason: z.string().trim().min(5).max(300),
               }),
             )
-            .max(171)
+            .max(174)
             .default([]),
           overnight: z
             .array(

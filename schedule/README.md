@@ -2,7 +2,7 @@
 
 The manager interface is the existing **Texas Schedule** tab of the private draft workbook. The separate Directory Schedule experiment is deprecated and hidden. Never install the old `DirectoryAdapter.js` unchanged; its helper schema differs from the implemented connection.
 
-`mapping.texas.json` is the reviewed mapping: 171 column-N name cells across eight stores, excluding nine merged non-name rows. Sunday starts/ends use P/Q, then U/V, Z/AA, AE/AF, AJ/AK, AO/AP and AT/AU. P1 supplies the Sunday date. The main sheet's 688-by-96 dimensions are checked before syncing/exporting; structural row changes require remapping.
+`mapping.texas.json` is the reviewed mapping: 174 column-N name cells across eight stores, excluding six merged non-name rows. TX-162 rows 265-280 are all active schedule rows. Sunday starts/ends use P/Q, then U/V, Z/AA, AE/AF, AJ/AK, AO/AP and AT/AU. P1 supplies the Sunday date. The main sheet's 688-by-96 dimensions are checked before syncing/exporting; structural row changes require remapping.
 
 ## Production sync
 

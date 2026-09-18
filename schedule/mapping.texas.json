@@ -367,6 +367,21 @@
     },
     {
       "storeId": "TX-162",
+      "scheduleRow": 276,
+      "hourlyRow": 101
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 277,
+      "hourlyRow": 102
+    },
+    {
+      "storeId": "TX-162",
+      "scheduleRow": 278,
+      "hourlyRow": 103
+    },
+    {
+      "storeId": "TX-162",
       "scheduleRow": 279,
       "hourlyRow": 104
     },
@@ -866,21 +881,6 @@
       "storeId": "TX-144",
       "scheduleRow": 157,
       "hourlyRow": 50
-    },
-    {
-      "storeId": "TX-162",
-      "scheduleRow": 276,
-      "hourlyRow": 101
-    },
-    {
-      "storeId": "TX-162",
-      "scheduleRow": 277,
-      "hourlyRow": 102
-    },
-    {
-      "storeId": "TX-162",
-      "scheduleRow": 278,
-      "hourlyRow": 103
     },
     {
       "storeId": "TX-154",

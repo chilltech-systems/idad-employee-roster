@@ -311,7 +311,7 @@ endpoint(
       storeId: { type: "string" },
       exclusions: {
         type: "array",
-        maxItems: 171,
+        maxItems: 174,
         items: {
           type: "object",
           required: ["row", "reason"],

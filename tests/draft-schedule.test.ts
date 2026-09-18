@@ -21,6 +21,7 @@ import {
 import { createHash } from "node:crypto";
 import { seed } from "../src/lib/seed";
 import type { Employee } from "../src/lib/model";
+import mapping from "../schedule/mapping.texas.json";
 function employee(id = "one"): Employee {
   return {
     ...seed().employees[0],
@@ -119,6 +120,21 @@ function set(
         : { stringValue: value },
   };
 }
+test("TX-162 includes the full active schedule block through rows 276-278", () => {
+  const rows = mapping.rows
+    .filter((row) => row.storeId === "TX-162")
+    .map((row) => row.scheduleRow);
+  assert.deepEqual(
+    rows,
+    Array.from({ length: 16 }, (_, index) => 265 + index),
+  );
+  assert.ok(
+    mapping.excludedMergedNonNameRows.every(
+      (row) =>
+        row.storeId !== "TX-162" || ![276, 277, 278].includes(row.scheduleRow),
+    ),
+  );
+});
 test("refresh retains selected inactive/renamed identity and never writes manager cells", () => {
   const g = grid(),
     e = employee();
