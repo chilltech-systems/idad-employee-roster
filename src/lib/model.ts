@@ -208,8 +208,7 @@ export function resolvedPosIdentity(
       ["confirmed", "manual"].includes(other.verification),
   );
   const ids = [...new Set(verified.map((other) => other.posEmployeeId))];
-  if (ids.length !== 1)
-    return { posEmployeeId: "", posIdentityPending: true };
+  if (ids.length !== 1) return { posEmployeeId: "", posIdentityPending: true };
 
   const posEmployeeId = ids[0];
   const collision = employees.some(
@@ -221,8 +220,7 @@ export function resolvedPosIdentity(
       other.posEmployeeId === posEmployeeId &&
       personId(other) !== id,
   );
-  if (collision)
-    return { posEmployeeId: "", posIdentityPending: true };
+  if (collision) return { posEmployeeId: "", posIdentityPending: true };
 
   return {
     posEmployeeId,

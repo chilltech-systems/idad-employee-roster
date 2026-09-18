@@ -8,6 +8,7 @@ import mapping from "../schedule/mapping.california.json";
 import {
   assertCaliforniaDraftReadback,
   californiaMasterFromGrid,
+  planCaliforniaDraftPreparation,
   planCaliforniaDraftSync,
 } from "../src/lib/california-draft-schedule";
 import {
@@ -212,6 +213,37 @@ test("California sync rejects an unbound typed schedule name", () => {
     () => planCaliforniaDraftSync(draft, employees),
     /Unbound California schedule name/,
   );
+});
+
+test("California first-sync preparation seeds only reviewed master ranges and is idempotent", () => {
+  const employees = mapping.stores.map((store, index) =>
+      employee(store.storeId, index),
+    ),
+    draft = grid(employees);
+  for (const store of mapping.stores) {
+    set(draft, mapping.master.sheetId, 15, store.nameColumn, "");
+    set(draft, mapping.master.sheetId, 15, store.idColumn, "");
+    set(
+      draft,
+      mapping.schedule.sheetId,
+      store.scheduleStartRow,
+      mapping.schedule.nameColumn,
+      "",
+    );
+  }
+  const preparation = planCaliforniaDraftPreparation(draft, employees);
+  assert.equal(preparation.prepared, true);
+  assert.equal(preparation.requests.length, mapping.stores.length);
+  assert.ok(
+    preparation.requests.every(
+      (request: any) =>
+        request.updateCells?.range.sheetId === mapping.master.sheetId,
+    ),
+  );
+  apply(draft, preparation.requests);
+  const repeated = planCaliforniaDraftPreparation(draft, employees);
+  assert.equal(repeated.prepared, false);
+  assert.deepEqual(repeated.requests, []);
 });
 
 test("California transport rejects schedule values and unrelated validation", async () => {

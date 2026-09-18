@@ -45,6 +45,12 @@ import {
   requireReportingExportToken,
   validateReportingDraftExports,
 } from "@/lib/reporting-draft-export";
+import {
+  activeScheduleTarget,
+  resolveScheduleTarget,
+  saveScheduleTarget,
+  targetOverview,
+} from "@/lib/schedule-targets";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -98,9 +104,20 @@ async function handler(
     if (reportingExport) {
       requireReportingExportToken(req.headers.get("authorization"));
       const payload = reportingDraftExportRequestSchema.parse(body);
-      const grid = await stableDraft(await draftClient());
+      const target = await repo.transact((state) =>
+          structuredClone(activeScheduleTarget(state, "texas")),
+        ),
+        grid = await stableDraft(
+          await draftClient(fetch, target.spreadsheetId),
+          target.spreadsheetId,
+        );
       const result = await repo.transact((state) =>
-        validateReportingDraftExports(grid, state, payload),
+        validateReportingDraftExports(
+          grid,
+          state,
+          payload,
+          target.spreadsheetId,
+        ),
       );
       return NextResponse.json(result, {
         headers: { "Cache-Control": "no-store" },
@@ -156,9 +173,34 @@ async function handler(
       );
       return NextResponse.json(result, { status: result.error ? 400 : 200 });
     }
+    if (path === "draft/targets" && method === "GET") {
+      const snapshot = await repo.transact((state) => {
+        const account = currentAccount(state, token);
+        requireAdmin(account);
+        return { account, state: structuredClone(state) };
+      });
+      return NextResponse.json(
+        await targetOverview(snapshot.state, snapshot.account),
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if (path === "draft/targets" && method === "POST") {
+      await repo.transact((state) =>
+        requireAdmin(currentAccount(state, token)),
+      );
+      const resolved = await resolveScheduleTarget(body);
+      const target = await repo.transact((state) =>
+        saveScheduleTarget(state, currentAccount(state, token), resolved),
+      );
+      return NextResponse.json({ ok: true, target });
+    }
     if (path === "draft/sync" && method === "POST") {
       await repo.transact((s) => requireAdmin(currentAccount(s, token)));
-      const result = await syncDraftNow();
+      const payload = z
+        .object({ state: z.enum(["texas", "california"]).optional() })
+        .strict()
+        .parse(body);
+      const result = await syncDraftNow(payload.state);
       return NextResponse.json(result);
     }
     if (path === "draft/export" && method === "POST") {
@@ -189,18 +231,26 @@ async function handler(
       await repo.transact((s) =>
         requireStore(currentAccount(s, token), payload.storeId),
       );
-      const grid = await stableDraft(await draftClient());
+      const target = await repo.transact((state) =>
+          structuredClone(activeScheduleTarget(state, "texas")),
+        ),
+        grid = await stableDraft(
+          await draftClient(fetch, target.spreadsheetId),
+          target.spreadsheetId,
+        );
       const extracted = extractDraft(
         grid,
         payload.storeId,
         1,
         payload.exclusions,
         payload.overnight,
+        target.spreadsheetId,
       );
       const key = draftExportKey(
         payload.storeId,
         extracted.input.weekStart,
         extracted.omitted.length > 0,
+        target.spreadsheetId,
       );
       const result = await repo.transact((s) => {
         requireStore(currentAccount(s, token), payload.storeId);
@@ -213,6 +263,7 @@ async function handler(
             s.sync.draftExports?.[key],
             payload.exclusions,
             payload.overnight,
+            target.spreadsheetId,
           ),
           currentAccount(s, token),
         );
@@ -309,6 +360,10 @@ async function handler(
             process.env.PORTAL_DRAFT_ID === DRAFT_ID &&
             process.env.PORTAL_CALIFORNIA_DRAFT_ID === CALIFORNIA_DRAFT_ID &&
             hasGoogleCredential("draft"),
+          targets: {
+            texas: activeScheduleTarget(s, "texas"),
+            california: activeScheduleTarget(s, "california"),
+          },
           automation: s.sync.automation,
           workerFresh:
             !!s.sync.automation?.heartbeat &&

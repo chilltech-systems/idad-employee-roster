@@ -1,4 +1,5 @@
 import { createSign } from "node:crypto";
+import mapping from "../../schedule/mapping.texas.json";
 import { googleCredential } from "./google-credential";
 import { Problem } from "./model";
 import { mode } from "./config";
@@ -21,10 +22,18 @@ async function json(response: Response) {
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
-export async function draftClient(request: typeof fetch = fetch) {
+export async function draftClient(
+  request: typeof fetch = fetch,
+  spreadsheetId = DRAFT_ID,
+) {
   if (
-    !["mongo-test", "mongo-production"].includes(process.env.PORTAL_MODE || "") ||
-    process.env.PORTAL_DRAFT_ID !== DRAFT_ID
+    !["mongo-test", "mongo-production"].includes(
+      process.env.PORTAL_MODE || "",
+    ) ||
+    process.env.PORTAL_DRAFT_ID !== DRAFT_ID ||
+    (spreadsheetId !== DRAFT_ID &&
+      !process.env.PORTAL_SCHEDULE_CATALOG_MONGODB_URI) ||
+    !/^[A-Za-z0-9_-]{20,100}$/.test(spreadsheetId)
   )
     throw new Problem(503, "The isolated draft connection is not enabled.");
   if (process.env.PORTAL_MODE === "mongo-production") mode();
@@ -61,20 +70,217 @@ export async function draftClient(request: typeof fetch = fetch) {
     Authorization: `Bearer ${auth.access_token}`,
     "Content-Type": "application/json",
   };
-  const base = `https://sheets.googleapis.com/v4/spreadsheets/${DRAFT_ID}`;
+  const base = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
+  async function metadata() {
+    const meta = await json(
+      await request(
+        base + "?fields=spreadsheetId,sheets(properties,protectedRanges)",
+        {
+          headers,
+          redirect: "error",
+          cache: "no-store",
+          signal: AbortSignal.timeout(15000),
+        },
+      ),
+    );
+    if (meta.spreadsheetId !== spreadsheetId)
+      throw new Problem(409, "Draft schedule identity changed.");
+    return meta;
+  }
   return {
-    async read() {
-      const meta = await json(
-        await request(
-          base + "?fields=spreadsheetId,sheets(properties,protectedRanges)",
-          {
-            headers,
-            redirect: "error",
-            cache: "no-store",
-            signal: AbortSignal.timeout(15000),
-          },
+    metadata,
+    async prepare(roster: string[][]) {
+      const meta = await metadata(),
+        main = meta.sheets.find(
+          (sheet: any) => sheet.properties.sheetId === MAIN_ID,
+        )?.properties;
+      if (
+        main?.title !== "Texas Schedule" ||
+        main.gridProperties.rowCount !== 688 ||
+        main.gridProperties.columnCount !== 96
+      )
+        throw new Problem(
+          409,
+          "The selected Texas schedule layout is incompatible.",
+        );
+      const byRosterId = meta.sheets.find(
+          (sheet: any) => sheet.properties.sheetId === ROSTER_ID,
         ),
+        byBindingId = meta.sheets.find(
+          (sheet: any) => sheet.properties.sheetId === BINDINGS_ID,
+        ),
+        byRosterTitle = meta.sheets.find(
+          (sheet: any) => sheet.properties.title === "Directory Roster",
+        ),
+        byBindingTitle = meta.sheets.find(
+          (sheet: any) => sheet.properties.title === "Directory Bindings",
+        );
+      if (byRosterId && byBindingId) {
+        if (
+          byRosterId.properties.title !== "Directory Roster" ||
+          byBindingId.properties.title !== "Directory Bindings" ||
+          byRosterId.properties.hidden !== true ||
+          byRosterId.properties.gridProperties.rowCount !== 5000 ||
+          byRosterId.properties.gridProperties.columnCount !== 6 ||
+          byBindingId.properties.hidden !== true ||
+          byBindingId.properties.gridProperties.rowCount !== 181 ||
+          byBindingId.properties.gridProperties.columnCount !== 6
+        )
+          throw new Problem(
+            409,
+            "The selected Texas helper layout is incompatible.",
+          );
+        return false;
+      }
+      if (byRosterId || byBindingId || byRosterTitle || byBindingTitle)
+        throw new Problem(
+          409,
+          "The selected Texas helper layout is incomplete.",
+        );
+      if (
+        roster.length >= 4999 ||
+        roster.some(
+          (row) =>
+            row.length !== 6 ||
+            row.some((value) => typeof value !== "string") ||
+            [0, 1, 3, 4, 5].some((index) => !row[index]),
+        )
+      )
+        throw new Problem(
+          409,
+          "The initial Texas directory roster is invalid.",
+        );
+      const rosterHeaders = [
+          "Store ID",
+          "Directory ID",
+          "POS ID",
+          "POS source",
+          "Selection label",
+          "POS name",
+        ],
+        bindingHeaders = [
+          "Schedule row",
+          "Store ID",
+          "Selected name",
+          "Directory ID",
+          "POS employee ID",
+          "Match status",
+        ],
+        bindingRows = [...mapping.rows, ...mapping.excludedMergedNonNameRows]
+          .sort((a, b) => a.hourlyRow - b.hourlyRow)
+          .map((entry, index) => {
+            const row = index + 2;
+            return [
+              { userEnteredValue: { numberValue: entry.scheduleRow } },
+              { userEnteredValue: { stringValue: entry.storeId } },
+              {
+                userEnteredValue: {
+                  formulaValue: `=IF('Texas Schedule'!N${entry.scheduleRow}="","",'Texas Schedule'!N${entry.scheduleRow})`,
+                },
+              },
+              {
+                userEnteredValue: {
+                  formulaValue: `=IFERROR(IF(C${row}="","",IF(COUNTIFS('Directory Roster'!$A$2:$A$5000,B${row},'Directory Roster'!$E$2:$E$5000,C${row})=1,INDEX(FILTER('Directory Roster'!$B$2:$B$5000,'Directory Roster'!$A$2:$A$5000=B${row},'Directory Roster'!$E$2:$E$5000=C${row}),1),"")),"")`,
+                },
+              },
+              {
+                userEnteredValue: {
+                  formulaValue: `=IFERROR(IF(D${row}="","",INDEX(FILTER('Directory Roster'!$C$2:$C$5000,'Directory Roster'!$B$2:$B$5000=D${row}),1)),"")`,
+                },
+              },
+              {
+                userEnteredValue: {
+                  formulaValue: `=IF(C${row}="","",IF(D${row}="","Select employee from dropdown","Matched"))`,
+                },
+              },
+            ];
+          });
+      const requests = [
+        {
+          addSheet: {
+            properties: {
+              sheetId: ROSTER_ID,
+              title: "Directory Roster",
+              hidden: true,
+              gridProperties: { rowCount: 5000, columnCount: 6 },
+            },
+          },
+        },
+        {
+          addSheet: {
+            properties: {
+              sheetId: BINDINGS_ID,
+              title: "Directory Bindings",
+              hidden: true,
+              gridProperties: { rowCount: 181, columnCount: 6 },
+            },
+          },
+        },
+        {
+          updateCells: {
+            range: {
+              sheetId: ROSTER_ID,
+              startRowIndex: 0,
+              endRowIndex: roster.length + 1,
+              startColumnIndex: 0,
+              endColumnIndex: 6,
+            },
+            rows: [rosterHeaders, ...roster].map((row) => ({
+              values: row.map((value) => ({
+                userEnteredValue: { stringValue: value },
+              })),
+            })),
+            fields: "userEnteredValue",
+          },
+        },
+        {
+          updateCells: {
+            range: {
+              sheetId: BINDINGS_ID,
+              startRowIndex: 0,
+              endRowIndex: bindingRows.length + 1,
+              startColumnIndex: 0,
+              endColumnIndex: 6,
+            },
+            rows: [
+              {
+                values: bindingHeaders.map((value) => ({
+                  userEnteredValue: { stringValue: value },
+                })),
+              },
+              ...bindingRows.map((values) => ({ values })),
+            ],
+            fields: "userEnteredValue",
+          },
+        },
+      ];
+      await json(
+        await request(base + ":batchUpdate", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ requests }),
+          redirect: "error",
+          signal: AbortSignal.timeout(20000),
+        }),
       );
+      const after = await metadata();
+      if (
+        !after.sheets.some(
+          (sheet: any) =>
+            sheet.properties.sheetId === ROSTER_ID &&
+            sheet.properties.title === "Directory Roster",
+        ) ||
+        !after.sheets.some(
+          (sheet: any) =>
+            sheet.properties.sheetId === BINDINGS_ID &&
+            sheet.properties.title === "Directory Bindings",
+        )
+      )
+        throw new Problem(409, "Texas helper preparation readback differed.");
+      return true;
+    },
+    async read() {
+      const meta = await metadata();
       for (const [id, title] of [
         [MAIN_ID, "Texas Schedule"],
         [ROSTER_ID, "Directory Roster"],
@@ -113,7 +319,7 @@ export async function draftClient(request: typeof fetch = fetch) {
       );
     },
     async write(requests: Record<string, unknown>[]) {
-      // No caller-provided URL/workbook. Only these exact scoped request shapes are accepted.
+      // The workbook ID is resolved server-side. Only exact scoped request shapes are accepted.
       for (const r of requests) {
         const x = r as any;
         if (Object.keys(r).length !== 1)

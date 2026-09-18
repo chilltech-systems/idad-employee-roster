@@ -22,9 +22,15 @@ const columnLetter = (column: number) => {
   return result;
 };
 
-function assertLayout(grid: DraftGrid) {
-  if (grid.spreadsheetId !== CALIFORNIA_DRAFT_ID)
-    throw new Problem(403, "Only the copied California draft is allowed.");
+function assertLayout(
+  grid: DraftGrid,
+  expectedWorkbookId = CALIFORNIA_DRAFT_ID,
+) {
+  if (grid.spreadsheetId !== expectedWorkbookId)
+    throw new Problem(
+      403,
+      "The California schedule identity did not match the selected target.",
+    );
   const schedule = grid.sheets.find(
       (sheet) => sheet.properties.sheetId === mapping.schedule.sheetId,
     )?.properties,
@@ -55,8 +61,11 @@ function assertLayout(grid: DraftGrid) {
   }
 }
 
-export function californiaMasterFromGrid(grid: DraftGrid): MasterRow[] {
-  assertLayout(grid);
+export function californiaMasterFromGrid(
+  grid: DraftGrid,
+  expectedWorkbookId = CALIFORNIA_DRAFT_ID,
+): MasterRow[] {
+  assertLayout(grid, expectedWorkbookId);
   const rows: MasterRow[] = [];
   for (const store of mapping.stores) {
     let blankSeen = false;
@@ -95,11 +104,127 @@ export function californiaMasterFromGrid(grid: DraftGrid): MasterRow[] {
   return rows;
 }
 
-export function californiaDraftFingerprint(grid: DraftGrid) {
+export function planCaliforniaDraftPreparation(
+  grid: DraftGrid,
+  employees: Employee[],
+  workbookId = CALIFORNIA_DRAFT_ID,
+) {
+  assertLayout(grid, workbookId);
+  let current: MasterRow[] | undefined;
+  try {
+    current = californiaMasterFromGrid(grid, workbookId);
+  } catch {
+    current = undefined;
+  }
+  if (
+    current &&
+    mapping.stores.every((store) =>
+      current.some((row) => row.storeId === store.storeId),
+    ) &&
+    current.every((row) =>
+      employees.some(
+        (employee) =>
+          employee.id === row.directoryId && employee.storeId === row.storeId,
+      ),
+    )
+  )
+    return { requests: [] as Record<string, unknown>[], prepared: false };
+
+  const requests: Record<string, unknown>[] = [];
+  for (const store of mapping.stores) {
+    const selected = new Set(
+        scheduleRows(store)
+          .map((row) =>
+            textValue(
+              cell(
+                grid,
+                mapping.schedule.sheetId,
+                row,
+                mapping.schedule.nameColumn,
+              ),
+            ),
+          )
+          .filter(Boolean),
+      ),
+      candidates = employees
+        .filter((employee) => employee.storeId === store.storeId)
+        .sort((a, b) => displayName(a).localeCompare(displayName(b), "en-US")),
+      claims = new Map<string, string>(),
+      rows: MasterRow[] = [];
+    for (const employee of candidates) {
+      let label = displayName(employee),
+        key = label.toLocaleLowerCase("en-US");
+      if (claims.has(key) && claims.get(key) !== employee.id) {
+        label = `${employee.firstName} ${employee.lastName}`;
+        key = label.toLocaleLowerCase("en-US");
+      }
+      if (claims.has(key) && claims.get(key) !== employee.id)
+        throw new Problem(
+          409,
+          `Two employees at ${store.storeId} need distinct preferred schedule names.`,
+        );
+      claims.set(key, employee.id);
+      if (employee.status === "active" || selected.has(label))
+        rows.push({ storeId: store.storeId, directoryId: employee.id, label });
+    }
+    const available = new Set(rows.map((row) => row.label));
+    for (const selectedName of selected)
+      if (!available.has(selectedName))
+        throw new Problem(
+          409,
+          `Unbound California schedule name at ${store.storeId}; review required.`,
+        );
+    const existingLength = Array.from(
+      { length: mapping.master.endRow - mapping.master.startRow + 1 },
+      (_, index) => mapping.master.startRow + index,
+    ).reduce(
+      (last, row) =>
+        textValue(cell(grid, mapping.master.sheetId, row, store.nameColumn)) ||
+        textValue(cell(grid, mapping.master.sheetId, row, store.idColumn))
+          ? row - mapping.master.startRow + 1
+          : last,
+      0,
+    );
+    const writeLength = Math.max(existingLength, rows.length);
+    if (
+      !rows.length ||
+      writeLength > mapping.master.endRow - mapping.master.startRow + 1
+    )
+      throw new Problem(409, "California employee master capacity reached.");
+    requests.push({
+      updateCells: {
+        range: {
+          sheetId: mapping.master.sheetId,
+          startRowIndex: mapping.master.startRow - 1,
+          endRowIndex: mapping.master.startRow - 1 + writeLength,
+          startColumnIndex: store.nameColumn - 1,
+          endColumnIndex: store.idColumn,
+        },
+        rows: Array.from({ length: writeLength }, (_, index) => {
+          const row = rows[index];
+          return {
+            values: row
+              ? [row.label, row.directoryId].map((value) => ({
+                  userEnteredValue: { stringValue: value },
+                }))
+              : [{}, {}],
+          };
+        }),
+        fields: "userEnteredValue",
+      },
+    });
+  }
+  return { requests, prepared: true };
+}
+
+export function californiaDraftFingerprint(
+  grid: DraftGrid,
+  workbookId = CALIFORNIA_DRAFT_ID,
+) {
   return createHash("sha256")
     .update(
       JSON.stringify({
-        master: californiaMasterFromGrid(grid),
+        master: californiaMasterFromGrid(grid, workbookId),
         selections: mapping.stores.flatMap((store) =>
           scheduleRows(store).map((row) => [
             store.storeId,
@@ -121,10 +246,14 @@ export function californiaDraftFingerprint(grid: DraftGrid) {
 
 export async function stableCaliforniaDraft(
   client: Awaited<ReturnType<typeof californiaDraftClient>>,
+  workbookId = CALIFORNIA_DRAFT_ID,
 ) {
   const first = (await client.read()) as DraftGrid,
     second = (await client.read()) as DraftGrid;
-  if (californiaDraftFingerprint(first) !== californiaDraftFingerprint(second))
+  if (
+    californiaDraftFingerprint(first, workbookId) !==
+    californiaDraftFingerprint(second, workbookId)
+  )
     throw new Problem(
       409,
       "California schedule changed during the read; retry after editing.",
@@ -135,8 +264,9 @@ export async function stableCaliforniaDraft(
 export function planCaliforniaDraftSync(
   grid: DraftGrid,
   employees: Employee[],
+  workbookId = CALIFORNIA_DRAFT_ID,
 ) {
-  const old = californiaMasterFromGrid(grid),
+  const old = californiaMasterFromGrid(grid, workbookId),
     byId = new Map(employees.map((employee) => [employee.id, employee])),
     requests: Record<string, unknown>[] = [],
     roster: MasterRow[] = [];
@@ -290,8 +420,9 @@ export function planCaliforniaDraftSync(
 export function assertCaliforniaDraftReadback(
   grid: DraftGrid,
   expected: MasterRow[],
+  workbookId = CALIFORNIA_DRAFT_ID,
 ) {
-  const actual = californiaMasterFromGrid(grid);
+  const actual = californiaMasterFromGrid(grid, workbookId);
   if (JSON.stringify(actual) !== JSON.stringify(expected))
     throw new Problem(409, "California employee master readback differed.");
   for (const store of mapping.stores) {

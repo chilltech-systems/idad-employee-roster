@@ -294,10 +294,35 @@ endpoint(
   "Private draft configuration, last sync and local worker heartbeat",
 );
 endpoint(
+  "/draft/targets",
+  "get",
+  "Administrator lists active Texas and California targets, the pinned test drafts, and eight newest ScheduleDB schedules",
+);
+endpoint(
+  "/draft/targets",
+  "post",
+  "Administrator verifies and saves a future schedule destination without writing to Google Sheets",
+  {
+    type: "object",
+    required: ["state", "targetKey"],
+    additionalProperties: false,
+    properties: {
+      state: { type: "string", enum: ["texas", "california"] },
+      targetKey: { type: "string", minLength: 1, maxLength: 160 },
+    },
+  },
+);
+endpoint(
   "/draft/sync",
   "post",
-  "Administrator syncs private draft hidden roster and name dropdowns only",
-  object,
+  "Administrator syncs one selected state target or both selected targets",
+  {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      state: { type: "string", enum: ["texas", "california"] },
+    },
+  },
 );
 endpoint(
   "/draft/export",

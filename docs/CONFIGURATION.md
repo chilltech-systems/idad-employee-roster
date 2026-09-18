@@ -40,6 +40,7 @@ observed identities are retained when the rolling window advances.
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | `PORTAL_DRAFT_ID`                          | Approved schedule/draft target identifier.                                                                                  |
 | `PORTAL_CALIFORNIA_DRAFT_ID`               | Approved California Jamba schedule draft identifier.                                                                        |
+| `PORTAL_SCHEDULE_CATALOG_MONGODB_URI`      | Dedicated read-only ScheduleDB connection used only to list the newest original Texas and California schedules.             |
 | `PORTAL_GOOGLE_DRAFT_SERVICE_ACCOUNT_FILE` | Local-only draft-writer credential path.                                                                                    |
 | `PORTAL_GOOGLE_DRAFT_SERVICE_ACCOUNT_JSON` | Hosted server-only draft-writer credential JSON.                                                                            |
 | `PORTAL_AUTOMATION_ENABLED`                | Local worker gate. Do not run it against the same target as hosted sync.                                                    |
@@ -47,7 +48,14 @@ observed identities are retained when the rolling window advances.
 | `CRON_SECRET`                              | Random machine credential for the protected daily endpoint.                                                                 |
 | `PORTAL_REPORT_EXPORT_TOKEN_SHA256`        | SHA-256 hex digest of the dedicated bearer token allowed only to validate and retrieve complete labor-report shift exports. |
 
-Manual and hosted schedule synchronization update both allowlisted workbooks.
+The two fixed draft IDs are the server-owned `Test Schedule — Current Directory
+Draft` targets and remain the initial active targets. The administrator can save
+an independent Texas or California target from the eight newest validated
+`ScheduleDB.google_sheets` records. Saving performs catalog, permission, and
+layout reads plus portal-state persistence only; it does not write the selected
+workbook. New ScheduleDB records never advance an active target automatically.
+
+Manual and hosted schedule synchronization update the independently selected workbooks.
 Texas retains its hidden identity roster, column-N dropdowns and validated shift
 exports. California refreshes the six reviewed store lists in `Employee Names
 Master` and the 105 strict column-R dropdown cells. Neither sync writes a

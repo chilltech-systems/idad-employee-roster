@@ -3,7 +3,7 @@ import { Problem } from "./model";
 import { repository, type Repository } from "./repository";
 
 export async function withSyncLease<T>(
-  name: "draft" | "daily",
+  name: "draft" | "draft:texas" | "draft:california" | "daily",
   work: (assertHeld: () => Promise<void>) => Promise<T>,
   repo: Repository = repository(),
   now: () => number = Date.now,

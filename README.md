@@ -14,6 +14,7 @@ The application runs as a standalone Next.js service today, but its boundaries a
 - Read-only mixed-POS roster discovery from completed weekly baselines plus a
   state-local daily labor gap and current-day sales/clock-ins.
 - ID-backed schedule dropdowns and validated shift exports.
+- Administrator-selected Texas and California schedule targets with pinned test drafts and explicit, audited changes.
 - Report-only machine validation for complete weekly labor schedule exports.
 - Daily or administrator-triggered synchronization with shared leases.
 - OpenAPI 3.1 contract at [`docs/openapi.json`](docs/openapi.json).

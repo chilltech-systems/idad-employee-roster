@@ -76,12 +76,56 @@ export function cell(
 }
 export const textValue = (c: GridCell) =>
   c.effectiveValue?.stringValue ?? c.userEnteredValue?.stringValue ?? "";
+
+export function initialTexasRoster(employees: Employee[]) {
+  const rows: string[][] = [],
+    claims = new Map<string, string>(),
+    scoped = employees
+      .filter((employee) =>
+        mapping.rows.some((row) => row.storeId === employee.storeId),
+      )
+      .sort((a, b) =>
+        `${a.storeId}|${displayName(a)}|${a.id}`.localeCompare(
+          `${b.storeId}|${displayName(b)}|${b.id}`,
+          "en-US",
+        ),
+      );
+  for (const employee of scoped) {
+    const identity = resolvedPosIdentity(employee, employees);
+    let label = displayName(employee),
+      key = `${employee.storeId}|${label.toLocaleLowerCase("en-US")}`;
+    if (claims.has(key) && claims.get(key) !== employee.id) {
+      label = `${employee.firstName} ${employee.lastName}`;
+      key = `${employee.storeId}|${label.toLocaleLowerCase("en-US")}`;
+    }
+    if (claims.has(key) && claims.get(key) !== employee.id)
+      throw new Problem(
+        409,
+        `Two employees at ${employee.storeId} need distinct preferred schedule names.`,
+      );
+    claims.set(key, employee.id);
+    rows.push([
+      employee.storeId,
+      employee.id,
+      identity.posEmployeeId,
+      employee.posSource,
+      label,
+      employee.posName,
+    ]);
+  }
+  if (rows.length >= 4999)
+    throw new Problem(409, "Roster alias capacity reached.");
+  return rows;
+}
 export function rosterFromGrid(
   g: DraftGrid,
   expectedWorkbookId = DRAFT_ID,
 ): string[][] {
   if (g.spreadsheetId !== expectedWorkbookId)
-    throw new Problem(403, "The schedule identity did not match the selected target.");
+    throw new Problem(
+      403,
+      "The draft schedule identity did not match the selected target.",
+    );
   const main = g.sheets.find(
     (s) => s.properties.sheetId === MAIN_ID,
   )?.properties;

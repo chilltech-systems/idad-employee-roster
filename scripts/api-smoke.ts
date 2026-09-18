@@ -22,6 +22,7 @@ async function call(
   return response;
 }
 assert.equal((await call("employees")).status, 401);
+assert.equal((await call("draft/targets")).status, 401);
 assert.equal(
   (
     await call(
@@ -52,6 +53,21 @@ const header = signed.headers.get("set-cookie")!;
 assert.match(header, /HttpOnly/i);
 assert.match(header, /SameSite=strict/i);
 const cookie = header.split(";")[0];
+const targetResponse = await call("draft/targets", "GET", undefined, cookie);
+assert.equal(targetResponse.status, 200);
+const targets = await targetResponse.json();
+assert.deepEqual(
+  targets.states.texas.options.map(
+    (target: { targetKey: string }) => target.targetKey,
+  ),
+  ["test-current-draft"],
+);
+assert.deepEqual(
+  targets.states.california.options.map(
+    (target: { targetKey: string }) => target.targetKey,
+  ),
+  ["test-current-draft"],
+);
 const records = await (
   await call("employees", "GET", undefined, cookie)
 ).json();
@@ -157,5 +173,5 @@ await call(
 assert.equal((await call("logout", "POST", {}, cookie)).status, 200);
 assert.equal((await call("employees", "GET", undefined, cookie)).status, 401);
 console.log(
-  "PASS: retired store-profile denial, IDAD Admin all-store access, origin check, secure session cookie, employee -> roster identity -> shift -> labor preview, and logout revocation.",
+  "PASS: retired store-profile denial, IDAD Admin all-store access, admin-only schedule-target listing, origin check, secure session cookie, employee -> roster identity -> shift -> labor preview, and logout revocation.",
 );

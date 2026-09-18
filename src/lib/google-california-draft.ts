@@ -23,12 +23,18 @@ async function json(response: Response) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-export async function californiaDraftClient(request: typeof fetch = fetch) {
+export async function californiaDraftClient(
+  request: typeof fetch = fetch,
+  spreadsheetId = CALIFORNIA_DRAFT_ID,
+) {
   if (
     !["mongo-test", "mongo-production"].includes(
       process.env.PORTAL_MODE || "",
     ) ||
-    process.env.PORTAL_CALIFORNIA_DRAFT_ID !== CALIFORNIA_DRAFT_ID
+    process.env.PORTAL_CALIFORNIA_DRAFT_ID !== CALIFORNIA_DRAFT_ID ||
+    (spreadsheetId !== CALIFORNIA_DRAFT_ID &&
+      !process.env.PORTAL_SCHEDULE_CATALOG_MONGODB_URI) ||
+    !/^[A-Za-z0-9_-]{20,100}$/.test(spreadsheetId)
   )
     throw new Problem(
       503,
@@ -69,7 +75,7 @@ export async function californiaDraftClient(request: typeof fetch = fetch) {
       Authorization: `Bearer ${auth.access_token}`,
       "Content-Type": "application/json",
     },
-    base = `https://sheets.googleapis.com/v4/spreadsheets/${CALIFORNIA_DRAFT_ID}`;
+    base = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}`;
   return {
     async read() {
       const meta = await json(
@@ -80,6 +86,8 @@ export async function californiaDraftClient(request: typeof fetch = fetch) {
           signal: AbortSignal.timeout(15000),
         }),
       );
+      if (meta.spreadsheetId !== spreadsheetId)
+        throw new Problem(409, "California schedule identity changed.");
       for (const expected of [mapping.schedule, mapping.master])
         if (
           !meta.sheets.some(

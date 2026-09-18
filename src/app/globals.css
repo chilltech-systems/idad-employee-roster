@@ -716,6 +716,38 @@ hr {
   text-decoration: underline;
   font-size: 12px;
 }
+.schedule-targets {
+  display: grid;
+  gap: 18px;
+}
+.schedule-target-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.schedule-target-card {
+  display: grid;
+  gap: 15px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafb;
+}
+.schedule-target-card h3,
+.schedule-target-card p {
+  margin: 4px 0 0;
+}
+.schedule-target-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+@media (max-width: 760px) {
+  .schedule-target-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .empty {
   text-align: center;
   padding: 45px 20px;

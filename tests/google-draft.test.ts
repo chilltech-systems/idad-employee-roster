@@ -7,6 +7,7 @@ import { join } from "node:path";
 import {
   draftClient,
   DRAFT_ID,
+  BINDINGS_ID,
   MAIN_ID,
   ROSTER_ID,
 } from "../src/lib/google-draft";
@@ -101,6 +102,122 @@ test("draft transport rejects manager-cell, unrelated-sheet, oversized and ambig
     names.forEach((n, i) => {
       if (old[i] === undefined) delete process.env[n];
       else process.env[n] = old[i];
+    });
+    await rm(dir, { recursive: true });
+  }
+});
+
+test("first Texas sync preparation creates only the reviewed hidden helper structure and is idempotent", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "portal-draft-prepare-")),
+    originalId = "original_texas_1234567890123",
+    names = [
+      "PORTAL_MODE",
+      "PORTAL_DRAFT_ID",
+      "PORTAL_GOOGLE_DRAFT_SERVICE_ACCOUNT_FILE",
+      "PORTAL_SCHEDULE_CATALOG_MONGODB_URI",
+    ],
+    old = names.map((name) => process.env[name]);
+  try {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 }),
+      file = join(dir, "fixture.json");
+    await writeFile(
+      file,
+      JSON.stringify({
+        type: "service_account",
+        client_email: "fixture@example.invalid",
+        private_key: privateKey.export({ type: "pkcs8", format: "pem" }),
+      }),
+      { mode: 0o600 },
+    );
+    process.env.PORTAL_MODE = "mongo-test";
+    process.env.PORTAL_DRAFT_ID = DRAFT_ID;
+    process.env.PORTAL_GOOGLE_DRAFT_SERVICE_ACCOUNT_FILE = file;
+    process.env.PORTAL_SCHEDULE_CATALOG_MONGODB_URI =
+      "mongodb://fixture.invalid";
+    let prepared = false;
+    const batches: any[] = [],
+      metadata = () => ({
+        spreadsheetId: originalId,
+        sheets: [
+          {
+            properties: {
+              sheetId: MAIN_ID,
+              title: "Texas Schedule",
+              gridProperties: { rowCount: 688, columnCount: 96 },
+            },
+          },
+          ...(prepared
+            ? [
+                {
+                  properties: {
+                    sheetId: ROSTER_ID,
+                    title: "Directory Roster",
+                    hidden: true,
+                    gridProperties: { rowCount: 5000, columnCount: 6 },
+                  },
+                },
+                {
+                  properties: {
+                    sheetId: BINDINGS_ID,
+                    title: "Directory Bindings",
+                    hidden: true,
+                    gridProperties: { rowCount: 181, columnCount: 6 },
+                  },
+                },
+              ]
+            : []),
+        ],
+      }),
+      client = await draftClient(async (url, options) => {
+        if (String(url) === "https://oauth2.googleapis.com/token")
+          return Response.json({ access_token: "fictional" });
+        if (options?.method === "POST") {
+          batches.push(JSON.parse(String(options.body)));
+          prepared = true;
+          return Response.json({ spreadsheetId: originalId });
+        }
+        return Response.json(metadata());
+      }, originalId);
+    const roster = [
+      ["TX-162", "directory-1", "pos-1", "Qu", "Jamie S.", "Jamie Store"],
+    ];
+    assert.equal(await client.prepare(roster), true);
+    assert.equal(await client.prepare(roster), false);
+    assert.equal(batches.length, 1);
+    const requests = batches[0].requests;
+    assert.deepEqual(
+      requests.slice(0, 2).map((request: any) => request.addSheet.properties),
+      [
+        {
+          sheetId: ROSTER_ID,
+          title: "Directory Roster",
+          hidden: true,
+          gridProperties: { rowCount: 5000, columnCount: 6 },
+        },
+        {
+          sheetId: BINDINGS_ID,
+          title: "Directory Bindings",
+          hidden: true,
+          gridProperties: { rowCount: 181, columnCount: 6 },
+        },
+      ],
+    );
+    assert.ok(
+      requests
+        .filter((request: any) => request.updateCells)
+        .every((request: any) =>
+          [ROSTER_ID, BINDINGS_ID].includes(request.updateCells.range.sheetId),
+        ),
+    );
+    assert.ok(
+      requests.every(
+        (request: any) => request.updateCells?.range.sheetId !== MAIN_ID,
+      ),
+    );
+  } finally {
+    names.forEach((name, index) => {
+      if (old[index] === undefined) delete process.env[name];
+      else process.env[name] = old[index];
     });
     await rm(dir, { recursive: true });
   }

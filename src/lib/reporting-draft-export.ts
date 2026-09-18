@@ -79,10 +79,12 @@ export function validateReportingDraftExports(
   grid: DraftGrid,
   state: State,
   request: z.infer<typeof reportingDraftExportRequestSchema>,
+  workbookId = DRAFT_ID,
 ) {
   const parsed = reportingDraftExportRequestSchema.parse(request);
   const weeks = parsed.storeIds.map(
-    (storeId) => extractDraft(grid, storeId, 1).input.weekStart,
+    (storeId) =>
+      extractDraft(grid, storeId, 1, [], [], workbookId).input.weekStart,
   );
   if (weeks.some((weekStart) => weekStart !== parsed.weekStart))
     throw new Problem(
@@ -92,7 +94,7 @@ export function validateReportingDraftExports(
 
   const results: ReportingDraftExportResult[] = parsed.storeIds.map(
     (storeId) => {
-      const key = draftExportKey(storeId, parsed.weekStart);
+      const key = draftExportKey(storeId, parsed.weekStart, false, workbookId);
       const previous = state.sync.draftExports?.[key];
       const result = validateDraftExport(
         grid,
@@ -101,6 +103,7 @@ export function validateReportingDraftExports(
         previous,
         [],
         legacyOvernightRules(previous),
+        workbookId,
       );
       const issues = result.snapshot.exceptions.map(
         (issue) => `Row ${issue.row}: ${issue.reason}`,
@@ -132,7 +135,7 @@ export function validateReportingDraftExports(
 
   return {
     version: 1,
-    workbookId: DRAFT_ID,
+    workbookId,
     weekStart: parsed.weekStart,
     generatedAt: new Date().toISOString(),
     results,
