@@ -21,7 +21,7 @@ const scheduleSchema = z
 const stateSchema = z
   .object({
     state: z.enum(["texas", "california"]),
-    schedules: z.array(scheduleSchema),
+    schedules: z.array(z.unknown()),
   })
   .passthrough();
 
@@ -58,26 +58,27 @@ export function parseScheduleCatalogDocument(
     throw new Problem(502, `The ${state} schedule catalog is invalid.`);
   const seenSchedule = new Set<string>(),
     seenSheet = new Set<string>();
-  const entries = parsed.data.schedules.map((entry) => {
+  const entries = parsed.data.schedules.flatMap((candidate) => {
+    const parsedEntry = scheduleSchema.safeParse(candidate);
+    if (!parsedEntry.success) return [];
+    const entry = parsedEntry.data;
+    const url = new URL(entry.sheetUrl);
+    if (url.pathname.split("/")[3] !== entry.sheetId) return [];
     if (seenSchedule.has(entry.scheduleId) || seenSheet.has(entry.sheetId))
       throw new Problem(
         502,
         `The ${state} schedule catalog contains duplicates.`,
       );
-    const url = new URL(entry.sheetUrl);
-    if (url.pathname.split("/")[3] !== entry.sheetId)
-      throw new Problem(
-        502,
-        `The ${state} schedule catalog contains mismatched workbook identities.`,
-      );
     seenSchedule.add(entry.scheduleId);
     seenSheet.add(entry.sheetId);
-    return {
+    return [{
       ...entry,
       state,
       targetKey: `schedule:${entry.scheduleId}`,
-    };
+    }];
   });
+  if (!entries.length)
+    throw new Problem(502, `The ${state} schedule catalog has no valid schedules.`);
   return entries
     .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
     .slice(0, 8);

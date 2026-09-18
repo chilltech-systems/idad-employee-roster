@@ -46,17 +46,29 @@ test("catalog returns exactly the eight newest valid schedules", () => {
   assert.ok(entries.every((entry) => entry.targetKey.startsWith("schedule:")));
 });
 
-test("catalog rejects stale identity mismatches and duplicate workbook records", () => {
+test("catalog skips stale identity mismatches and rejects duplicate workbook records", () => {
   const mismatched = schedule(1);
   mismatched.sheetUrl =
     "https://docs.google.com/spreadsheets/d/a_different_workbook_12345/edit";
+  const entries = parseScheduleCatalogDocument(
+    {
+      state: "texas",
+      schedules: [
+        mismatched,
+        ...Array.from({ length: 10 }, (_, i) => schedule(i + 2)),
+      ],
+    },
+    "texas",
+  );
+  assert.equal(entries.length, 8);
+  assert.ok(entries.every((entry) => entry.scheduleId !== mismatched.scheduleId));
   assert.throws(
     () =>
       parseScheduleCatalogDocument(
         { state: "texas", schedules: [mismatched] },
         "texas",
       ),
-    /mismatched workbook identities/,
+    /no valid schedules/,
   );
   assert.throws(
     () =>
