@@ -437,9 +437,19 @@ async function handler(
         },
         { status: 400 },
       );
+    const diagnostic =
+      e instanceof Error
+        ? e.message
+            .replace(
+              /mongodb(?:\+srv)?:\/\/[^@\s]+@/gi,
+              "mongodb://[redacted]@",
+            )
+            .slice(0, 500)
+        : "No error details were provided.";
     console.error(
       "Portal request failed:",
       e instanceof Error ? e.name : "Unknown error",
+      diagnostic,
     );
     return NextResponse.json(
       {
