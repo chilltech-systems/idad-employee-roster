@@ -2,12 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   centralBusinessDate,
+  dailyReportBaseUrl,
+  gapBusinessDates,
   mergeCurrentDayRoster,
   parseCurrentDayRoster,
   quClockedInBaseUrl,
   quEmployeeSalesBaseUrl,
   quLocationsUrl,
   readCurrentDayRoster,
+  readRosterActivity,
   retainPreviousRoster,
 } from "../src/lib/current-day-roster";
 import type { Roster, Store } from "../src/lib/model";
@@ -44,6 +47,25 @@ test("formats the current business date in America/Chicago", () => {
   assert.equal(
     centralBusinessDate(new Date("2026-01-01T05:30:00.000Z")),
     "12312025",
+  );
+});
+
+test("enumerates the gap from Monday through each local today", () => {
+  assert.deepEqual(gapBusinessDates(new Date("2026-09-14T17:00:00.000Z")), [
+    { iso: "20260914", api: "09142026" },
+  ]);
+  assert.deepEqual(
+    gapBusinessDates(new Date("2026-09-17T17:00:00.000Z")).map(
+      (date) => date.iso,
+    ),
+    ["20260914", "20260915", "20260916", "20260917"],
+  );
+  assert.equal(
+    gapBusinessDates(
+      new Date("2026-09-14T06:30:00.000Z"),
+      "Pacific/Honolulu",
+    ).at(-1)!.iso,
+    "20260913",
   );
 });
 
@@ -179,7 +201,77 @@ test("merges current activity additively and lets a current name verify the iden
   assert.ok(merged.rows.some((row) => row.posName === "Historical Employee"));
   assert.ok(merged.rows.some((row) => row.posName === "Current Name"));
   assert.ok(merged.rows.some((row) => row.posEmployeeId === "fresh-1"));
-  assert.equal(merged.source, "fixture-baseline+qu-current-day:09172026");
+  assert.equal(merged.source, "fixture-baseline+current-day:09172026");
+});
+
+test("fills completed gap dates from normalized clock-ins before current activity", async () => {
+  const requested: string[] = [];
+  const fixtureStores = [stores[0]];
+  const result = await readRosterActivity(
+    fixtureStores,
+    (async (url) => {
+      const value = String(url);
+      requested.push(value);
+      if (value.startsWith(dailyReportBaseUrl)) {
+        const date = new URL(value).searchParams.get("date")!;
+        return Response.json({
+          business_date: date,
+          stores: [
+            {
+              store_id: "tx200",
+              pos_system: "qu",
+              labor_summary: {
+                employees: [
+                  {
+                    employee_id: `gap-${date}`,
+                    employee_name: `Gap ${date}`,
+                    clock_in: `${date}T10:00:00Z`,
+                  },
+                ],
+              },
+            },
+          ],
+        });
+      }
+      if (value === quLocationsUrl)
+        return Response.json([{ store_code: "tx200", api_store_id: "200" }]);
+      if (value === `${quClockedInBaseUrl}?apiStoreId=200`)
+        return Response.json({ data: [] });
+      return Response.json([
+        {
+          store_code: "tx200",
+          employeeSales: [{ employee_id: "today", name: "Today Employee" }],
+        },
+      ]);
+    }) as typeof fetch,
+    new Date("2026-09-17T17:00:00.000Z"),
+  );
+  assert.ok(requested.includes(`${dailyReportBaseUrl}?date=20260914`));
+  assert.ok(requested.includes(`${dailyReportBaseUrl}?date=20260916`));
+  assert.ok(!requested.includes(`${dailyReportBaseUrl}?date=20260917`));
+  assert.ok(result.rows.some((row) => row.posEmployeeId === "gap-20260914"));
+  assert.ok(result.rows.some((row) => row.posEmployeeId === "today"));
+  assert.match(result.source, /clock-in-gap:20260914-20260917/);
+});
+
+test("rejects a completed gap date missing an enabled store", async () => {
+  await assert.rejects(
+    readRosterActivity(
+      [stores[0]],
+      (async (url) => {
+        const value = String(url);
+        if (value.startsWith(dailyReportBaseUrl))
+          return Response.json({
+            business_date: new URL(value).searchParams.get("date"),
+            stores: [],
+          });
+        if (value === quLocationsUrl) return Response.json([]);
+        return Response.json([]);
+      }) as typeof fetch,
+      new Date("2026-09-17T17:00:00.000Z"),
+    ),
+    /missing enabled stores/,
+  );
 });
 
 test("rejects unavailable or malformed current-day responses", async () => {

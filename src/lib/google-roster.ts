@@ -1,6 +1,7 @@
 import { createSign } from "node:crypto";
 import { googleCredential } from "./google-credential";
 import { Problem, rosterSchema, type Store, type Roster } from "./model";
+import { storeCodeKey, storeCodeMap } from "./store-codes";
 
 export const rosterSpreadsheet = "1cnwk6I56RMs0-lBc2i2j2VIM0jRcPXPHyUVZLTQ06vE";
 export const rosterTab = "Employee ID Master - Import";
@@ -28,15 +29,19 @@ export function parseGoogleRoster(
       502,
       "Roster columns changed; expected Store Id, Employee Name, Employee Number, Store+Emp.ID.",
     );
-  const mapping = new Map(enabled.map((s) => [s.id.toLowerCase(), s]));
-  if (
-    !enabled.length ||
-    mapping.size !== enabled.length ||
-    enabled.some((s) => s.posSource !== "Qu")
-  )
+  let mapping: Map<string, Store>;
+  try {
+    mapping = storeCodeMap(enabled);
+  } catch {
     throw new Problem(
       503,
-      "Configure the approved Qu store IDs before reading the live roster.",
+      "Configure unique approved store IDs before reading the live roster.",
+    );
+  }
+  if (!enabled.length || mapping.size !== enabled.length)
+    throw new Problem(
+      503,
+      "Configure unique approved store IDs before reading the live roster.",
     );
   const rows: Roster["rows"] = [];
   const seen = new Set<string>();
@@ -56,7 +61,7 @@ export function parseGoogleRoster(
     const [store, name, id, compound] = row.map((v) => v.trim());
     if (compound.toLowerCase() !== `${store}+${id}`.toLowerCase())
       throw new Problem(502, `Roster identity mismatch on row ${i + 1}.`);
-    const target = mapping.get(store.toLowerCase());
+    const target = mapping.get(storeCodeKey(store));
     if (!target) continue;
     const key = JSON.stringify([target.id, id]);
     if (seen.has(key))

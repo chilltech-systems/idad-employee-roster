@@ -1,5 +1,12 @@
 # Texas Schedule directory connection
 
+California Jamba uses the same directory-controlled display-name rule through a
+separate fail-closed adapter. `mapping.california.json` pins the private copied
+workbook, the six `Employee Names Master` name/ID column pairs, and 105 column-R
+schedule cells. Sync writes only those master pairs and their validation rules;
+it never writes selected names, times, formulas or formatting. Existing selected
+inactive or renamed aliases remain available until removed from the schedule.
+
 The manager interface is the existing **Texas Schedule** tab of the private draft workbook. The separate Directory Schedule experiment is deprecated and hidden. Never install the old `DirectoryAdapter.js` unchanged; its helper schema differs from the implemented connection.
 
 `mapping.texas.json` is the reviewed mapping: 174 column-N name cells across eight stores, excluding six merged non-name rows. TX-162 rows 265-280 are all active schedule rows. Sunday starts/ends use P/Q, then U/V, Z/AA, AE/AF, AJ/AK, AO/AP and AT/AU. P1 supplies the Sunday date. The main sheet's 688-by-96 dimensions are checked before syncing/exporting; structural row changes require remapping.

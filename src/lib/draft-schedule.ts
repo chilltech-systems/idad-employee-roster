@@ -3,7 +3,7 @@ import { DateTime } from "luxon";
 import mapping from "../../schedule/mapping.texas.json";
 import {
   displayName,
-  posPending,
+  resolvedPosIdentity,
   Problem,
   type Employee,
   type State,
@@ -29,6 +29,14 @@ export type GridCell = {
     errorValue?: unknown;
   };
   formattedValue?: string;
+  dataValidation?: {
+    condition?: {
+      type?: string;
+      values?: { userEnteredValue?: string }[];
+    };
+    strict?: boolean;
+    showCustomUi?: boolean;
+  };
 };
 export type DraftGrid = {
   spreadsheetId: string;
@@ -68,9 +76,12 @@ export function cell(
 }
 export const textValue = (c: GridCell) =>
   c.effectiveValue?.stringValue ?? c.userEnteredValue?.stringValue ?? "";
-export function rosterFromGrid(g: DraftGrid): string[][] {
-  if (g.spreadsheetId !== DRAFT_ID)
-    throw new Problem(403, "Only the copied draft is allowed.");
+export function rosterFromGrid(
+  g: DraftGrid,
+  expectedWorkbookId = DRAFT_ID,
+): string[][] {
+  if (g.spreadsheetId !== expectedWorkbookId)
+    throw new Problem(403, "The schedule identity did not match the selected target.");
   const main = g.sheets.find(
     (s) => s.properties.sheetId === MAIN_ID,
   )?.properties;
@@ -112,12 +123,12 @@ export function rosterFromGrid(g: DraftGrid): string[][] {
     throw new Problem(409, "Duplicate schedule labels require review.");
   return rows;
 }
-export function draftFingerprint(g: DraftGrid) {
+export function draftFingerprint(g: DraftGrid, workbookId = DRAFT_ID) {
   return createHash("sha256")
     .update(
       JSON.stringify({
         week: cell(g, MAIN_ID, 1, 16).effectiveValue,
-        roster: rosterFromGrid(g),
+        roster: rosterFromGrid(g, workbookId),
         rows: mapping.rows.map((m) => [
           m.storeId,
           m.scheduleRow,
@@ -133,18 +144,25 @@ export function draftFingerprint(g: DraftGrid) {
 }
 export async function stableDraft(
   client: Awaited<ReturnType<typeof draftClient>>,
+  workbookId = DRAFT_ID,
 ) {
   const first = (await client.read()) as DraftGrid,
     second = (await client.read()) as DraftGrid;
-  if (draftFingerprint(first) !== draftFingerprint(second))
+  if (
+    draftFingerprint(first, workbookId) !== draftFingerprint(second, workbookId)
+  )
     throw new Problem(
       409,
       "Schedule changed during the read; retry after editing.",
     );
   return second;
 }
-export function planDraftSync(g: DraftGrid, employees: Employee[]) {
-  const old = rosterFromGrid(g),
+export function planDraftSync(
+  g: DraftGrid,
+  employees: Employee[],
+  workbookId = DRAFT_ID,
+) {
+  const old = rosterFromGrid(g, workbookId),
     rows = old.map((r) => [...r]),
     labels = new Map<string, string>();
   const claims = new Map(
@@ -161,10 +179,11 @@ export function planDraftSync(g: DraftGrid, employees: Employee[]) {
         409,
         "Historical roster identity missing or changed store; review required.",
       );
-    r[2] = posPending(e) ? "" : e.posEmployeeId;
+    r[2] = resolvedPosIdentity(e, employees).posEmployeeId;
     r[5] = e.posName;
   }
   for (const e of scoped.filter((e) => e.status === "active")) {
+    const identity = resolvedPosIdentity(e, employees);
     let label = displayName(e);
     const occupied = (name: string) =>
       claims.has(e.storeId + "|" + name.toLocaleLowerCase("en-US")) &&
@@ -201,7 +220,7 @@ export function planDraftSync(g: DraftGrid, employees: Employee[]) {
       rows.push([
         e.storeId,
         e.id,
-        posPending(e) ? "" : e.posEmployeeId,
+        identity.posEmployeeId,
         e.posSource,
         label,
         e.posName,
@@ -361,6 +380,7 @@ export function extractDraft(
   revision: number,
   exclusions: Exclusion[] = [],
   overnight: { row: number; day: number }[] = [],
+  workbookId = DRAFT_ID,
 ) {
   const mapped = mapping.rows.filter((m) => m.storeId === storeId);
   if (!mapped.length) throw new Problem(400, "Store is not mapped.");
@@ -391,7 +411,7 @@ export function extractDraft(
   });
   if (week.weekday !== 7)
     throw new Problem(409, "Schedule week must start Sunday.");
-  const roster = rosterFromGrid(g),
+  const roster = rosterFromGrid(g, workbookId),
     cells: ShiftInput["cells"] = [],
     omitted: { row: number; date: string; reason: string }[] = [];
   for (const m of mapped) {
@@ -424,7 +444,7 @@ export function extractDraft(
   }
   return {
     input: {
-      workbookId: DRAFT_ID,
+      workbookId,
       weekStart: week.toISODate()!,
       revision,
       cells,
@@ -448,25 +468,36 @@ export function validateDraftExport(
   previous: DraftExport | undefined,
   exclusions: Exclusion[] = [],
   overnight: { row: number; day: number }[] = [],
+  workbookId = DRAFT_ID,
 ) {
-  const extracted = extractDraft(g, storeId, 1, exclusions, overnight),
+  const extracted = extractDraft(
+      g,
+      storeId,
+      1,
+      exclusions,
+      overnight,
+      workbookId,
+    ),
     fingerprint = createHash("sha256")
       .update(
         JSON.stringify({
           extracted,
           employees: employees
             .filter((e) => e.storeId === storeId)
-            .map((e) => ({
-              id: e.id,
-              personId: e.personId,
-              posIdentityPending: e.posIdentityPending,
-              storeId: e.storeId,
-              posSource: e.posSource,
-              posEmployeeId: e.posEmployeeId,
-              posName: e.posName,
-              displayName: displayName(e),
-              verification: e.verification,
-            }))
+            .map((e) => {
+              const identity = resolvedPosIdentity(e, employees);
+              return {
+                id: e.id,
+                personId: e.personId,
+                posIdentityPending: identity.posIdentityPending,
+                storeId: e.storeId,
+                posSource: e.posSource,
+                posEmployeeId: identity.posEmployeeId,
+                posName: e.posName,
+                displayName: displayName(e),
+                verification: e.verification,
+              };
+            })
             .sort((a, b) => a.id.localeCompare(b.id)),
         }),
       )
@@ -498,8 +529,13 @@ export function validateDraftExport(
     snapshot,
   };
 }
-export function draftExportKey(storeId: string, week: string, scoped = false) {
-  return [DRAFT_ID, storeId, week, ...(scoped ? ["scoped"] : [])].join(":");
+export function draftExportKey(
+  storeId: string,
+  week: string,
+  scoped = false,
+  workbookId = DRAFT_ID,
+) {
+  return [workbookId, storeId, week, ...(scoped ? ["scoped"] : [])].join(":");
 }
 export function recordDraftExport(
   s: State,
@@ -510,6 +546,7 @@ export function recordDraftExport(
     result.storeId,
     result.snapshot.weekStart,
     result.scope === "explicit-exclusions",
+    result.snapshot.workbookId,
   );
   s.sync.draftExports ??= {};
   if (

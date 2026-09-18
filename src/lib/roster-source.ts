@@ -1,7 +1,7 @@
 import { mode, stores } from "./config";
 import {
   mergeCurrentDayRoster,
-  readCurrentDayRoster,
+  readRosterActivity,
 } from "./current-day-roster";
 import { readGoogleRoster } from "./google-roster";
 import { Problem } from "./model";
@@ -9,7 +9,7 @@ import { Problem } from "./model";
 // credentials should grant read access only to the source workbook (Google ACLs
 // cannot be scoped to an individual tab). The adapter reads only the import tab.
 export async function fetchRoster(
-  options: { includeCurrentDay?: boolean } = {},
+  options: { includeCurrentDay?: boolean } = { includeCurrentDay: true },
 ) {
   if (mode() === "demo")
     return {
@@ -55,7 +55,7 @@ export async function fetchRoster(
     const enabled = stores();
     const baseline = await readGoogleRoster(enabled);
     if (!options.includeCurrentDay) return baseline;
-    const current = await readCurrentDayRoster(enabled);
+    const current = await readRosterActivity(enabled);
     return mergeCurrentDayRoster(baseline, current);
   }
   const url = process.env.PORTAL_ROSTER_URL;

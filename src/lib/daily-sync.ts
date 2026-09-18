@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { repository, type Repository } from "./repository";
 import { fetchRoster } from "./roster-source";
 import { refresh } from "./service";
+import { retainPreviousRoster } from "./current-day-roster";
 import { syncDraftNow } from "./draft-operations";
 import { withSyncLease } from "./sync-lease";
 import { Problem } from "./model";
@@ -25,7 +26,7 @@ export function authorizeDailySync(header: string | null) {
 export async function runDailySync(
   repo: Repository = repository(),
   readRoster = fetchRoster,
-  writeDraft = syncDraftNow,
+  writeDraft: () => Promise<unknown> = syncDraftNow,
   now = () => new Date(),
 ) {
   return withSyncLease(
@@ -35,7 +36,10 @@ export async function runDailySync(
       if (await repo.transact((s) => s.sync.automation?.lastDailyDate === day))
         return { ok: true, skipped: true };
       try {
-        const snapshot = await readRoster();
+        const previous = await repo.transact((s) =>
+          s.sync.snapshot ? structuredClone(s.sync.snapshot) : undefined,
+        );
+        const snapshot = retainPreviousRoster(await readRoster(), previous);
         await assertHeld();
         const result = await repo.transact((s) =>
           refresh(s, { id: "hosted-daily-sync", role: "admin" }, snapshot),

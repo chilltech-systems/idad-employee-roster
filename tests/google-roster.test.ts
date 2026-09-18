@@ -45,6 +45,20 @@ test("maps explicit stores across states, preserves text IDs and excludes disabl
   );
   assert.equal(multiState.rowCount, 2);
   assert.equal(multiState.rows[1].storeId, "TJ-1031");
+  const jamba = {
+    id: "JJ-025",
+    posSource: "Toast",
+    state: "California",
+    brand: "Jamba",
+    name: "Thousand Oaks",
+  };
+  const mixed = parseGoogleRoster(
+    [header, values[1], ["jj-25", "Jamba Fixture", "toast-1", "jj-25+toast-1"]],
+    [...stores, jamba],
+    at,
+  );
+  assert.equal(mixed.rows[1].storeId, "JJ-025");
+  assert.equal(mixed.rows[1].posSource, "Toast");
 });
 test("rejects incomplete, duplicate, changed-column, numeric-ID and missing-store sources", () => {
   for (const data of [
@@ -58,9 +72,6 @@ test("rejects incomplete, duplicate, changed-column, numeric-ID and missing-stor
     [header, values[2]],
   ])
     assert.throws(() => parseGoogleRoster(data, stores, at));
-  assert.throws(() =>
-    parseGoogleRoster(values, [{ ...stores[0], posSource: "Other POS" }], at),
-  );
 });
 test("linked stores retain separate assignments; no implicit expansion", () => {
   const data = [

@@ -76,6 +76,11 @@ Before implementation, map every external field to one of these concepts:
 | `revision`          | Concurrency token required for reviewed mutations.                         |
 | `status`            | Active/inactive assignment state retained historically.                    |
 
+For Qu only, one unique `confirmed` or manually verified employee ID may be reused by another
+pending store assignment belonging to the same explicitly linked `personId`. The carry-over is
+rejected when verified sibling assignments disagree or the destination store already assigns that
+ID to a different person. Store attribution remains mandatory for punch matching.
+
 ## Acceptance gates
 
 An integration is not complete until it verifies:

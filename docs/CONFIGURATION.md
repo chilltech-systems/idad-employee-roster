@@ -24,17 +24,34 @@ All non-demo configuration is server-only. Do not create `NEXT_PUBLIC_*` version
 | `PORTAL_GOOGLE_SERVICE_ACCOUNT_FILE` | Local-only path to a roster-reader credential.           |
 | `PORTAL_GOOGLE_SERVICE_ACCOUNT_JSON` | Hosted server-only roster-reader credential JSON.        |
 
+The Google adapter supplies the four most recently completed Monday-Sunday
+weeks. Each refresh then fills the following Monday through each configured
+store's local current date: completed dates come from normalized daily labor,
+and the current date comes from the configured QU or Toast employee-sales and
+clocked-in sources. Store codes are matched canonically, so forms such as
+`JJ-025`, `jj-25`, and `jj25` resolve to the same configured store while POS
+identity remains exact by store, source, and employee ID. Every expected source
+and completed date must succeed before a snapshot is accepted. Previously
+observed identities are retained when the rolling window advances.
+
 ## Schedule synchronization
 
 | Variable                                   | Purpose                                                                                                                     |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
 | `PORTAL_DRAFT_ID`                          | Approved schedule/draft target identifier.                                                                                  |
+| `PORTAL_CALIFORNIA_DRAFT_ID`               | Approved California Jamba schedule draft identifier.                                                                        |
 | `PORTAL_GOOGLE_DRAFT_SERVICE_ACCOUNT_FILE` | Local-only draft-writer credential path.                                                                                    |
 | `PORTAL_GOOGLE_DRAFT_SERVICE_ACCOUNT_JSON` | Hosted server-only draft-writer credential JSON.                                                                            |
 | `PORTAL_AUTOMATION_ENABLED`                | Local worker gate. Do not run it against the same target as hosted sync.                                                    |
 | `PORTAL_HOSTED_SYNC_ENABLED`               | Hosted daily endpoint gate.                                                                                                 |
 | `CRON_SECRET`                              | Random machine credential for the protected daily endpoint.                                                                 |
 | `PORTAL_REPORT_EXPORT_TOKEN_SHA256`        | SHA-256 hex digest of the dedicated bearer token allowed only to validate and retrieve complete labor-report shift exports. |
+
+Manual and hosted schedule synchronization update both allowlisted workbooks.
+Texas retains its hidden identity roster, column-N dropdowns and validated shift
+exports. California refreshes the six reviewed store lists in `Employee Names
+Master` and the 105 strict column-R dropdown cells. Neither sync writes a
+manager-selected schedule name, shift time, format or formula.
 
 ## Operator-only setup variables
 
