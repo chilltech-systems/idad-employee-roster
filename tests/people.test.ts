@@ -18,7 +18,11 @@ import {
 } from "../src/lib/service";
 import { exportShifts, laborPreview } from "../src/lib/shifts";
 import { assertStateTransition } from "../src/lib/storage-scope";
-import type { Account, State } from "../src/lib/model";
+import {
+  resolvedPosIdentity,
+  type Account,
+  type State,
+} from "../src/lib/model";
 const admin: Account = { id: "IDADadmin", role: "admin" };
 const manager: Account = {
   id: "TX-DEMO-2",
@@ -73,17 +77,17 @@ test("migration preview is read-only, alphabetical and never merges equal names"
   assert.equal(p.profiles[0].firstName, "Alex");
   assert.equal(profile(s).homeStoreId, "TX-DEMO-1");
 });
-test("multiple pending assignments preserve scoped unique keys, appear immediately and reject manager profile changes", () => {
+test("one verified Qu identity carries to linked stores while unresolved assignments stay pending", () => {
   const s = seed();
   assign(s);
   assign(s, "demo-2");
   const roster = rosterRows(s, admin, "TX-DEMO-2");
-  assert.equal(roster.filter((e) => e.posIdentityPending).length, 2);
-  assert.ok(
-    roster
-      .filter((e) => e.posIdentityPending)
-      .every((e) => e.posEmployeeId === ""),
-  );
+  const inherited = roster.find((e) => e.personId === "demo-1")!;
+  assert.equal(inherited.posIdentityPending, false);
+  assert.equal(inherited.posEmployeeId, "00101");
+  const unresolved = roster.find((e) => e.personId === "demo-2")!;
+  assert.equal(unresolved.posIdentityPending, true);
+  assert.equal(unresolved.posEmployeeId, "");
   assertStateTransition(seed(), s);
   assert.throws(() => listPeople(s, manager), /Administrator/);
   assert.throws(() => savePerson(s, manager, "demo-1", {}), /Administrator/);
@@ -236,7 +240,7 @@ test("new-store POS discovery stays in review and explicit linking verifies the 
   assert.equal(listCandidates(s, admin).length, 0);
   assert.equal(profile(s).homeStoreId, "TX-DEMO-1");
 });
-test("pending exports keep scheduled store attribution; actual matching waits and cannot borrow a home-store punch", () => {
+test("verified Qu IDs carry to linked stores while punch matching remains store-scoped", () => {
   const s = seed();
   assign(s);
   const e = s.employees.find((e) => e.posIdentityPending)!;
@@ -261,7 +265,8 @@ test("pending exports keep scheduled store attribution; actual matching waits an
   const exported = exportShifts(input, s.employees);
   assert.equal(exported.ready, true);
   assert.equal(exported.shifts[0].storeId, "TX-DEMO-2");
-  assert.equal(exported.shifts[0].posEmployeeId, "");
+  assert.equal(exported.shifts[0].posEmployeeId, "00101");
+  assert.equal(exported.shifts[0].posIdentityPending, false);
   assert.equal(exported.shifts[0].personId, "demo-1");
   const punch = {
     id: "p",
@@ -273,8 +278,14 @@ test("pending exports keep scheduled store attribution; actual matching waits an
     end: "2026-09-07T15:00:00-05:00",
   };
   const result = laborPreview(exported, [punch]);
-  assert.equal(result.records[0].result, "review");
+  assert.equal(result.records[0].result, "no-punch");
   assert.deepEqual(result.unmatchedPunchIds, ["p"]);
+  assert.equal(
+    laborPreview(exported, [
+      { ...punch, storeId: e.storeId },
+    ]).records[0].result,
+    "matched",
+  );
   e.posEmployeeId = "destination-17";
   e.posIdentityPending = false;
   e.verification = "confirmed";
@@ -288,6 +299,32 @@ test("pending exports keep scheduled store attribution; actual matching waits an
     ]).records[0].result,
     "matched",
   );
+});
+
+test("Qu carry-over fails closed for ambiguous sibling IDs or destination collisions", () => {
+  const s = seed();
+  assign(s);
+  const pending = s.employees.find(
+    (employee) => employee.personId === "demo-1" && employee.posIdentityPending,
+  )!;
+  s.employees.push({
+    ...s.employees[0],
+    id: "other-verified-assignment",
+    personId: "demo-1",
+    storeId: "TX-OTHER",
+    posEmployeeId: "different-id",
+  });
+  assert.equal(resolvedPosIdentity(pending, s.employees).posIdentityPending, true);
+
+  s.employees.pop();
+  s.employees.push({
+    ...s.employees[1],
+    id: "destination-collision",
+    storeId: pending.storeId,
+    posEmployeeId: "00101",
+    verification: "confirmed",
+  });
+  assert.equal(resolvedPosIdentity(pending, s.employees).posIdentityPending, true);
 });
 
 test("blank legacy POS IDs fail export instead of becoming implicitly pending", () => {

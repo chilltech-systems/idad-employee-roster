@@ -16,6 +16,7 @@ import {
   normalizedName,
   posPending,
   personId,
+  resolvedPosIdentity,
   Problem,
   requireAdmin,
   requireStore,
@@ -157,12 +158,15 @@ export function listEmployees(s: State, a: Account, storeId?: string) {
     .filter(
       (e) => canAccess(a, e.storeId) && (!storeId || e.storeId === storeId),
     )
-    .map((e) => ({
-      ...e,
-      posEmployeeId: posPending(e) ? "" : e.posEmployeeId,
-      posIdentityPending: posPending(e),
-      displayName: displayName(e),
-    }));
+    .map((e) => {
+      const identity = resolvedPosIdentity(e, s.employees);
+      return {
+        ...e,
+        posEmployeeId: identity.posEmployeeId,
+        posIdentityPending: identity.posIdentityPending,
+        displayName: displayName(e),
+      };
+    });
 }
 function verify(s: State, e: Employee) {
   if (posPending(e)) {
@@ -178,6 +182,15 @@ function verify(s: State, e: Employee) {
   }
   e.observedPosName = row.posName;
   e.observedAt = s.sync.snapshot!.observedAt;
+  if (
+    normalizedName(row.posName) ===
+    normalizedName(`Employee ${e.posEmployeeId}`)
+  ) {
+    // QU can return an ID-only placeholder from current-day labor feeds. It is
+    // neutral evidence, not a contradictory employee name.
+    if (e.verification === "review") e.verification = "awaiting";
+    return;
+  }
   const agrees = normalizedName(row.posName) === normalizedName(e.posName);
   if (!agrees) {
     e.verification = "review";

@@ -154,3 +154,57 @@ export const posPending = (
   e: Pick<Employee, "posEmployeeId" | "posIdentityPending">,
 ) => e.posIdentityPending === true || e.posEmployeeId.startsWith("pending:");
 export const personId = (e: Employee) => e.personId || e.id;
+
+export type ResolvedPosIdentity = {
+  posEmployeeId: string;
+  posIdentityPending: boolean;
+};
+
+/**
+ * Qu employee IDs are global across Qu stores. A pending assignment may use one
+ * unique ID already verified on another assignment for the same linked person.
+ * Ambiguous IDs and destination-store collisions remain pending.
+ */
+export function resolvedPosIdentity(
+  employee: Employee,
+  employees: Employee[],
+): ResolvedPosIdentity {
+  if (!posPending(employee))
+    return {
+      posEmployeeId: employee.posEmployeeId,
+      posIdentityPending: false,
+    };
+  if (employee.posSource.toLocaleLowerCase("en-US") !== "qu")
+    return { posEmployeeId: "", posIdentityPending: true };
+
+  const id = personId(employee);
+  const verified = employees.filter(
+    (other) =>
+      other.id !== employee.id &&
+      personId(other) === id &&
+      other.posSource.toLocaleLowerCase("en-US") === "qu" &&
+      !posPending(other) &&
+      ["confirmed", "manual"].includes(other.verification),
+  );
+  const ids = [...new Set(verified.map((other) => other.posEmployeeId))];
+  if (ids.length !== 1)
+    return { posEmployeeId: "", posIdentityPending: true };
+
+  const posEmployeeId = ids[0];
+  const collision = employees.some(
+    (other) =>
+      other.id !== employee.id &&
+      other.storeId === employee.storeId &&
+      other.posSource.toLocaleLowerCase("en-US") === "qu" &&
+      !posPending(other) &&
+      other.posEmployeeId === posEmployeeId &&
+      personId(other) !== id,
+  );
+  if (collision)
+    return { posEmployeeId: "", posIdentityPending: true };
+
+  return {
+    posEmployeeId,
+    posIdentityPending: false,
+  };
+}

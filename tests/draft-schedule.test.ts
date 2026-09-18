@@ -314,6 +314,46 @@ test("pending assignments sync names-only labels and hidden IDs, export schedule
   assert.equal(inactive.active, 1);
 });
 
+test("a pending Qu assignment inherits one confirmed ID from the same linked person", () => {
+  const g = grid();
+  const source = {
+    ...employee("source"),
+    personId: "shared-person",
+    storeId: "TX-200",
+    posEmployeeId: "199439",
+    posName: "Alexis Lopez",
+    firstName: "Alexis",
+    lastName: "Lopez",
+  };
+  const destination = {
+    ...employee("one"),
+    personId: "shared-person",
+    posEmployeeId: "pending:one",
+    posIdentityPending: true,
+    posName: "Alexis Lopez",
+    firstName: "Alexis",
+    lastName: "Lopez",
+    verification: "awaiting" as const,
+  };
+  const plan = planDraftSync(g, [source, destination]);
+  const row = plan.roster.find((entry) => entry[1] === destination.id)!;
+  assert.equal(row[2], "199439");
+
+  for (const [i, entry] of plan.roster.entries())
+    for (const [j, value] of entry.entries())
+      set(g, ROSTER_ID, i + 2, j + 1, value);
+  set(g, MAIN_ID, 22, 14, row[4]);
+  const exported = validateDraftExport(
+    g,
+    [source, destination],
+    "TX-149",
+    undefined,
+  );
+  assert.equal(exported.snapshot.ready, true);
+  assert.equal(exported.snapshot.shifts[0].posEmployeeId, "199439");
+  assert.equal(exported.snapshot.shifts[0].posIdentityPending, false);
+});
+
 test("report-only token authentication fails closed without exposing the configured digest", () => {
   const token = "reporting-fixture-token-that-is-long-enough";
   const digest = createHash("sha256").update(token).digest("hex");

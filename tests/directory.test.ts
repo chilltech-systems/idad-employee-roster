@@ -177,6 +177,16 @@ test("roster normalizes whitespace/case without overriding preferences", () => {
   assert.deepEqual(s.employees[0].aliases, ["M"]);
   assert.equal(s.employees.find((e) => e.id === "demo-6")?.status, "inactive");
 });
+test("an ID-only Qu placeholder is neutral and does not create a false name conflict", () => {
+  const s = seed();
+  s.employees[0].verification = "review";
+  s.employees[0].observedPosName = "Employee 00101";
+  const r = roster();
+  r.rows[0].posName = "Employee 00101";
+  assert.ok(refresh(s, admin, r).ok);
+  assert.equal(s.employees[0].verification, "awaiting");
+  assert.equal(s.employees[0].observedPosName, "Employee 00101");
+});
 test("empty, incomplete, duplicate and stale refreshes retain last accepted snapshot", () => {
   const s = seed();
   refresh(s, admin, roster());

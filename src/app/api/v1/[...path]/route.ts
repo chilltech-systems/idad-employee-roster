@@ -32,6 +32,7 @@ import { syncDraftNow } from "@/lib/draft-operations";
 import { retainPreviousRoster } from "@/lib/current-day-roster";
 import { portalOrigin } from "@/lib/origin";
 import { hasGoogleCredential } from "@/lib/google-credential";
+import { CALIFORNIA_DRAFT_ID } from "@/lib/google-california-draft";
 import {
   listPeople,
   savePerson,
@@ -306,6 +307,7 @@ async function handler(
           configured:
             mode() !== "demo" &&
             process.env.PORTAL_DRAFT_ID === DRAFT_ID &&
+            process.env.PORTAL_CALIFORNIA_DRAFT_ID === CALIFORNIA_DRAFT_ID &&
             hasGoogleCredential("draft"),
           automation: s.sync.automation,
           workerFresh:

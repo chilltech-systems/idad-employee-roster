@@ -3,7 +3,7 @@ import { DateTime } from "luxon";
 import mapping from "../../schedule/mapping.texas.json";
 import {
   displayName,
-  posPending,
+  resolvedPosIdentity,
   Problem,
   type Employee,
   type State,
@@ -29,6 +29,14 @@ export type GridCell = {
     errorValue?: unknown;
   };
   formattedValue?: string;
+  dataValidation?: {
+    condition?: {
+      type?: string;
+      values?: { userEnteredValue?: string }[];
+    };
+    strict?: boolean;
+    showCustomUi?: boolean;
+  };
 };
 export type DraftGrid = {
   spreadsheetId: string;
@@ -161,10 +169,11 @@ export function planDraftSync(g: DraftGrid, employees: Employee[]) {
         409,
         "Historical roster identity missing or changed store; review required.",
       );
-    r[2] = posPending(e) ? "" : e.posEmployeeId;
+    r[2] = resolvedPosIdentity(e, employees).posEmployeeId;
     r[5] = e.posName;
   }
   for (const e of scoped.filter((e) => e.status === "active")) {
+    const identity = resolvedPosIdentity(e, employees);
     let label = displayName(e);
     const occupied = (name: string) =>
       claims.has(e.storeId + "|" + name.toLocaleLowerCase("en-US")) &&
@@ -201,7 +210,7 @@ export function planDraftSync(g: DraftGrid, employees: Employee[]) {
       rows.push([
         e.storeId,
         e.id,
-        posPending(e) ? "" : e.posEmployeeId,
+        identity.posEmployeeId,
         e.posSource,
         label,
         e.posName,
@@ -456,17 +465,20 @@ export function validateDraftExport(
           extracted,
           employees: employees
             .filter((e) => e.storeId === storeId)
-            .map((e) => ({
-              id: e.id,
-              personId: e.personId,
-              posIdentityPending: e.posIdentityPending,
-              storeId: e.storeId,
-              posSource: e.posSource,
-              posEmployeeId: e.posEmployeeId,
-              posName: e.posName,
-              displayName: displayName(e),
-              verification: e.verification,
-            }))
+            .map((e) => {
+              const identity = resolvedPosIdentity(e, employees);
+              return {
+                id: e.id,
+                personId: e.personId,
+                posIdentityPending: identity.posIdentityPending,
+                storeId: e.storeId,
+                posSource: e.posSource,
+                posEmployeeId: identity.posEmployeeId,
+                posName: e.posName,
+                displayName: displayName(e),
+                verification: e.verification,
+              };
+            })
             .sort((a, b) => a.id.localeCompare(b.id)),
         }),
       )

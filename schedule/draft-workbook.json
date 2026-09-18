@@ -1,10 +1,10 @@
 {
-  "sourceId": "1EiuMU83LtVXvevJDVLhQRKoDpN4n7NcSMkQrmkxyKWs",
-  "draftId": "1CYTmBf6hWkiwcyqt6LRjNrekJD4FmMTN25d4Pkr4B0o",
-  "url": "https://docs.google.com/spreadsheets/d/1CYTmBf6hWkiwcyqt6LRjNrekJD4FmMTN25d4Pkr4B0o/edit",
-  "verifiedTabCount": 24,
-  "sharing": "owner only",
-  "status": "Original Texas Schedule interface restored as sole manager interface; column N dropdowns and Hourly Calculations identity integration implemented; automated refresh/export pending",
+  "sourceId": "1sJkMXc4oAneJ-whcGObQTmm2poaHFnMJpUArW0jCl7M",
+  "draftId": "1ugYhBd-Bw5kOTyGMWgi6vJsvK-KXMqeZ032lOZo6xZc",
+  "url": "https://docs.google.com/spreadsheets/d/1ugYhBd-Bw5kOTyGMWgi6vJsvK-KXMqeZ032lOZo6xZc/edit",
+  "verifiedTabCount": 23,
+  "sharing": "owner plus directory sync service account",
+  "status": "Texas Schedule 09.13-09.19 private copy connected as the sole schedule target; 174 column N dropdowns and hidden directory helpers verified; production manual sync completed",
   "scheduleTabId": 1883086419,
   "rosterTabId": 910102
 }

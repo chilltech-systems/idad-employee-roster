@@ -11,7 +11,8 @@ The application runs as a standalone Next.js service today, but its boundaries a
 - Multi-store profiles with retained inactive assignment history.
 - Explicit identity review, audited archive/restore, and linking; names never trigger automatic merges.
 - Optimistic revision checks and immutable audit history.
-- Read-only roster discovery through a replaceable source adapter.
+- Read-only mixed-POS roster discovery from completed weekly baselines plus a
+  state-local daily labor gap and current-day sales/clock-ins.
 - ID-backed schedule dropdowns and validated shift exports.
 - Report-only machine validation for complete weekly labor schedule exports.
 - Daily or administrator-triggered synchronization with shared leases.

@@ -5,7 +5,7 @@ import {
   displayName,
   identityKey,
   personId,
-  posPending,
+  resolvedPosIdentity,
   type Employee,
 } from "./model";
 const cellSchema = z
@@ -88,7 +88,10 @@ export function exportShifts(raw: unknown, employees: Employee[]) {
       const employee = employees.find(
         (e) => e.id === cell.directoryId && e.storeId === cell.storeId,
       );
-      if (!employee || (!employee.posEmployeeId && !posPending(employee)))
+      if (!employee)
+        throw new Error("A valid directory and POS identity is required.");
+      const identity = resolvedPosIdentity(employee, employees);
+      if (!identity.posEmployeeId && !identity.posIdentityPending)
         throw new Error("A valid directory and POS identity is required.");
       if (employee.verification === "review")
         throw new Error("Conflicting POS identity requires review.");
@@ -130,10 +133,10 @@ export function exportShifts(raw: unknown, employees: Employee[]) {
           id,
           directoryId: employee.id,
           personId: personId(employee),
-          posIdentityPending: posPending(employee),
+          posIdentityPending: identity.posIdentityPending,
           storeId: cell.storeId,
           posSource: employee.posSource,
-          posEmployeeId: posPending(employee) ? "" : employee.posEmployeeId,
+          posEmployeeId: identity.posEmployeeId,
           displayName: displayName(employee),
           posName: employee.posName,
           businessDate: cell.businessDate,

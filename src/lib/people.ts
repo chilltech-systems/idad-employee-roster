@@ -5,6 +5,7 @@ import {
   displayName,
   personId,
   posPending,
+  resolvedPosIdentity,
   Problem,
   requireAdmin,
   type Account,
@@ -79,11 +80,14 @@ export function listPeople(s: State, a: Account) {
         revision: createHash("sha256")
           .update(JSON.stringify([settings, assignments]))
           .digest("hex"),
-        assignments: assignments.map((e) => ({
-          ...e,
-          posEmployeeId: posPending(e) ? "" : e.posEmployeeId,
-          posIdentityPending: posPending(e),
-        })),
+        assignments: assignments.map((e) => {
+          const identity = resolvedPosIdentity(e, s.employees);
+          return {
+            ...e,
+            posEmployeeId: identity.posEmployeeId,
+            posIdentityPending: identity.posIdentityPending,
+          };
+        }),
       };
     })
     .sort(

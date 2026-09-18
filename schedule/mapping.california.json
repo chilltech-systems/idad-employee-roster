@@ -1,0 +1,69 @@
+{
+  "reviewed": true,
+  "spreadsheetId": "1hJRgrxJ5k6EQ8SpYH3QpMQbR5egWJyLiUHLfPGkCS4I",
+  "schedule": {
+    "sheet": "Jamba",
+    "sheetId": 1883086419,
+    "rowCount": 875,
+    "columnCount": 106,
+    "nameColumn": 18
+  },
+  "master": {
+    "sheet": "Employee Names Master",
+    "sheetId": 416379836,
+    "rowCount": 1008,
+    "columnCount": 28,
+    "startRow": 15,
+    "endRow": 1000
+  },
+  "stores": [
+    {
+      "storeId": "JJ-025",
+      "sourceHeader": "jj-25",
+      "nameColumn": 2,
+      "idColumn": 3,
+      "scheduleStartRow": 21,
+      "scheduleEndRow": 40
+    },
+    {
+      "storeId": "JJ-125",
+      "sourceHeader": "jj-125",
+      "nameColumn": 5,
+      "idColumn": 6,
+      "scheduleStartRow": 69,
+      "scheduleEndRow": 88
+    },
+    {
+      "storeId": "JJ-104833",
+      "sourceHeader": "jj-104833",
+      "nameColumn": 17,
+      "idColumn": 18,
+      "scheduleStartRow": 115,
+      "scheduleEndRow": 127
+    },
+    {
+      "storeId": "JJ-171",
+      "sourceHeader": "jj-171",
+      "nameColumn": 8,
+      "idColumn": 9,
+      "scheduleStartRow": 157,
+      "scheduleEndRow": 172
+    },
+    {
+      "storeId": "JJ-548",
+      "sourceHeader": "jj-548",
+      "nameColumn": 11,
+      "idColumn": 12,
+      "scheduleStartRow": 308,
+      "scheduleEndRow": 326
+    },
+    {
+      "storeId": "JJ-552",
+      "sourceHeader": "jj-552",
+      "nameColumn": 14,
+      "idColumn": 15,
+      "scheduleStartRow": 410,
+      "scheduleEndRow": 426
+    }
+  ]
+}

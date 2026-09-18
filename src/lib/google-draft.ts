@@ -2,7 +2,7 @@ import { createSign } from "node:crypto";
 import { googleCredential } from "./google-credential";
 import { Problem } from "./model";
 import { mode } from "./config";
-export const DRAFT_ID = "1CYTmBf6hWkiwcyqt6LRjNrekJD4FmMTN25d4Pkr4B0o";
+export const DRAFT_ID = "1ugYhBd-Bw5kOTyGMWgi6vJsvK-KXMqeZ032lOZo6xZc";
 export const MAIN_ID = 1883086419,
   ROSTER_ID = 910102,
   BINDINGS_ID = 910103;

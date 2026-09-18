@@ -8,6 +8,13 @@ import {
 } from "./draft-schedule";
 import { repository } from "./repository";
 import { Problem } from "./model";
+import { californiaDraftClient } from "./google-california-draft";
+import {
+  assertCaliforniaDraftReadback,
+  californiaDraftFingerprint,
+  planCaliforniaDraftSync,
+  stableCaliforniaDraft,
+} from "./california-draft-schedule";
 export async function syncDraftNow() {
   return withSyncLease("draft", async (assertHeld) => {
     const client = await draftClient(),
@@ -21,7 +28,15 @@ export async function syncDraftNow() {
     const after = await stableDraft(client);
     if (JSON.stringify(rosterFromGrid(after)) !== JSON.stringify(plan.roster))
       throw new Problem(409, "Draft roster readback differed; retry sync.");
-    // Names/times are never mutation targets, so simultaneous manager edits remain intact.
+    const californiaClient = await californiaDraftClient(),
+      californiaGrid = await stableCaliforniaDraft(californiaClient),
+      californiaPlan = planCaliforniaDraftSync(californiaGrid, employees);
+    await assertHeld();
+    if (californiaPlan.requests.length)
+      await californiaClient.write(californiaPlan.requests);
+    const californiaAfter = await stableCaliforniaDraft(californiaClient);
+    assertCaliforniaDraftReadback(californiaAfter, californiaPlan.roster);
+    // Schedule names/times are never mutation targets, so simultaneous manager edits remain intact.
     await repository().transact((s) => {
       s.sync.automation = {
         ...s.sync.automation,
@@ -34,6 +49,11 @@ export async function syncDraftNow() {
       active: plan.active,
       aliases: plan.roster.length,
       fingerprint: draftFingerprint(after),
+      california: {
+        active: californiaPlan.active,
+        aliases: californiaPlan.roster.length,
+        fingerprint: californiaDraftFingerprint(californiaAfter),
+      },
     };
   });
 }
