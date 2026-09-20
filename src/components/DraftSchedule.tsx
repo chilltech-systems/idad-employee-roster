@@ -3,6 +3,10 @@ import { useEffect, useState } from "react";
 import type { State } from "@/lib/model";
 import type { DraftExport } from "@/lib/draft-schedule";
 import type { ScheduleTarget, ScheduleTargetState } from "@/lib/model";
+import {
+  scheduleSyncNotice,
+  type ScheduleSyncResponse,
+} from "@/lib/schedule-sync-result";
 type TargetOption = Pick<
   ScheduleTarget,
   | "state"
@@ -111,10 +115,11 @@ export default function DraftSchedule({
     setError("");
     try {
       if (sync) {
-        await request("draft/sync", {
+        const response = (await request("draft/sync", {
           state: california ? "california" : "texas",
-        });
+        })) as ScheduleSyncResponse;
         setStatus(await request("draft/status"));
+        setTargetNotice(scheduleSyncNotice(response));
       } else {
         const excluded = exclusions
           .split("\n")
@@ -181,14 +186,14 @@ export default function DraftSchedule({
     setTargetNotice("");
     setTargetErrors((current) => ({ ...current, [state]: undefined }));
     try {
-      await request("draft/sync", { state });
+      const response = (await request("draft/sync", {
+        state,
+      })) as ScheduleSyncResponse;
       await Promise.all([
         reloadTargets(),
         request("draft/status").then(setStatus),
       ]);
-      setTargetNotice(
-        `${state === "texas" ? "Texas" : "California"} schedule dropdowns synced successfully.`,
-      );
+      setTargetNotice(scheduleSyncNotice(response));
     } catch (e) {
       setTargetErrors((current) => ({
         ...current,

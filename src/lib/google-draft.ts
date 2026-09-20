@@ -326,6 +326,7 @@ export async function draftClient(
           throw new Problem(400, "Invalid draft write.");
         if (x.updateCells) {
           const g = x.updateCells.range;
+          const mainNameCell = x.updateCells.rows?.[0]?.values?.[0];
           if (
             Object.keys(x.updateCells).some(
               (k) => !["range", "rows", "fields"].includes(k),
@@ -351,7 +352,19 @@ export async function draftClient(
                 g.startColumnIndex === 3 &&
                 g.endColumnIndex === 5 &&
                 g.startRowIndex === 1 &&
-                g.endRowIndex === 181)
+                g.endRowIndex === 181) ||
+              (g.sheetId === MAIN_ID &&
+                g.startColumnIndex === 13 &&
+                g.endColumnIndex === 14 &&
+                g.endRowIndex === g.startRowIndex + 1 &&
+                mapping.rows.some((m) => m.scheduleRow === g.endRowIndex) &&
+                Object.keys(mainNameCell || {}).length === 1 &&
+                Object.keys(mainNameCell?.userEnteredValue || {}).length ===
+                  1 &&
+                typeof mainNameCell?.userEnteredValue?.stringValue ===
+                  "string" &&
+                mainNameCell.userEnteredValue.stringValue.length > 0 &&
+                mainNameCell.userEnteredValue.stringValue.length <= 160)
             )
           )
             throw new Problem(
@@ -360,14 +373,12 @@ export async function draftClient(
             );
         } else if (x.setDataValidation) {
           const g = x.setDataValidation.range;
-          const map = (await import("../../schedule/mapping.texas.json"))
-            .default;
           if (
             g.sheetId !== MAIN_ID ||
             g.startColumnIndex !== 13 ||
             g.endColumnIndex !== 14 ||
             g.endRowIndex !== g.startRowIndex + 1 ||
-            !map.rows.some((m) => m.scheduleRow === g.endRowIndex)
+            !mapping.rows.some((m) => m.scheduleRow === g.endRowIndex)
           )
             throw new Problem(
               400,

@@ -8,6 +8,10 @@ import {
   statusAssignments,
   type RosterStatus,
 } from "@/lib/people-list";
+import {
+  scheduleSyncNotice,
+  type ScheduleSyncResponse,
+} from "@/lib/schedule-sync-result";
 
 async function request<T>(
   path: string,
@@ -105,9 +109,13 @@ export default function AllEmployees({
     setBusy(true);
     setError("");
     try {
-      await request("draft/sync", "POST", {});
+      const response = await request<ScheduleSyncResponse>(
+        "draft/sync",
+        "POST",
+        {},
+      );
       setDraft(await request<DraftStatus>("draft/status"));
-      setNotice("Schedule dropdowns synced successfully.");
+      setNotice(scheduleSyncNotice(response));
     } catch (e) {
       setError(
         `Assignments remain saved. Schedule sync failed: ${(e as Error).message}`,

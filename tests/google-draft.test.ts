@@ -95,7 +95,27 @@ test("draft transport rejects manager-cell, unrelated-sheet, oversized and ambig
       );
     assert.equal(writes.length, 0);
     await client.write([{ updateCells: update }]);
+    await client.write([
+      {
+        updateCells: {
+          range: {
+            sheetId: MAIN_ID,
+            startRowIndex: 21,
+            endRowIndex: 22,
+            startColumnIndex: 13,
+            endColumnIndex: 14,
+          },
+          rows: [
+            {
+              values: [{ userEnteredValue: { stringValue: "Jamie C." } }],
+            },
+          ],
+          fields: "userEnteredValue",
+        },
+      },
+    ]);
     assert.deepEqual(writes, [
+      `https://sheets.googleapis.com/v4/spreadsheets/${DRAFT_ID}:batchUpdate`,
       `https://sheets.googleapis.com/v4/spreadsheets/${DRAFT_ID}:batchUpdate`,
     ]);
   } finally {

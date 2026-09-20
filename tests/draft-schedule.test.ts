@@ -159,6 +159,79 @@ test("refresh retains selected inactive/renamed identity and never writes manage
   assert.equal(inactive.roster[0][1], "one");
   assert.equal(inactive.active, 0);
 });
+test("Texas sync reconciles only unique store-scoped names and reports every unresolved cell", () => {
+  const g = grid(),
+    a = employee(),
+    b = employee("two");
+  b.posName = "Jamie Carson";
+  set(g, MAIN_ID, 22, 14, "Jamie Cooper");
+  set(g, MAIN_ID, 23, 14, "Jamie");
+  set(g, MAIN_ID, 24, 14, "Train Rolling");
+  const plan = planDraftSync(g, [a, b]);
+  assert.deepEqual(plan.reconciliation.reconciled, [
+    {
+      cell: "N22",
+      row: 22,
+      storeId: "TX-149",
+      from: "Jamie Cooper",
+      to: "Jamie C.",
+    },
+  ]);
+  assert.deepEqual(
+    plan.reconciliation.unmatched.map((miss) => ({
+      cell: miss.cell,
+      value: miss.value,
+      reason: miss.reason,
+      candidates: miss.candidates,
+    })),
+    [
+      {
+        cell: "N23",
+        value: "Jamie",
+        reason: "ambiguous",
+        candidates: ["Jamie C.", "Jamie Carson"],
+      },
+      {
+        cell: "N24",
+        value: "Train Rolling",
+        reason: "no-match",
+        candidates: [],
+      },
+    ],
+  );
+  const writes = plan.requests.filter(
+    (request: any) => request.updateCells?.range.sheetId === MAIN_ID,
+  ) as any[];
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0].updateCells.range, {
+    sheetId: MAIN_ID,
+    startRowIndex: 21,
+    endRowIndex: 22,
+    startColumnIndex: 13,
+    endColumnIndex: 14,
+  });
+  assert.equal(
+    writes[0].updateCells.rows[0].values[0].userEnteredValue.stringValue,
+    "Jamie C.",
+  );
+});
+
+test("Texas reconciliation accepts reviewed legacy annotations without fuzzy matching", () => {
+  const g = grid(),
+    e = employee();
+  set(g, MAIN_ID, 22, 14, "Jamie *");
+  set(g, MAIN_ID, 23, 14, "Jamie (Galleria)");
+  set(g, MAIN_ID, 24, 14, "Jame");
+  const plan = planDraftSync(g, [e]);
+  assert.deepEqual(
+    plan.reconciliation.reconciled.map((match) => match.cell),
+    ["N22", "N23"],
+  );
+  assert.deepEqual(
+    plan.reconciliation.unmatched.map((miss) => miss.cell),
+    ["N24"],
+  );
+});
 test("name collisions disambiguate with full names, never numbers; unbound names cannot be claimed", () => {
   const g = grid(),
     a = employee(),

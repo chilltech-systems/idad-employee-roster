@@ -1,11 +1,13 @@
 import { withSyncLease } from "./sync-lease";
-import { draftClient } from "./google-draft";
+import { draftClient, MAIN_ID } from "./google-draft";
 import {
   stableDraft,
   planDraftSync,
   draftFingerprint,
   rosterFromGrid,
   initialTexasRoster,
+  cell,
+  textValue,
 } from "./draft-schedule";
 import { repository } from "./repository";
 import { Problem, type ScheduleTargetState } from "./model";
@@ -103,6 +105,9 @@ async function syncTexas(
     JSON.stringify(plan.roster)
   )
     throw new Problem(409, "Texas roster readback differed; retry sync.");
+  for (const match of plan.reconciliation.reconciled)
+    if (textValue(cell(after, MAIN_ID, match.row, 14)) !== match.to)
+      throw new Problem(409, "Texas name reconciliation readback differed.");
   await recordResult("texas", target, "ready");
   return {
     state: "texas" as const,
@@ -110,6 +115,7 @@ async function syncTexas(
     prepared,
     active: plan.active,
     aliases: plan.roster.length,
+    reconciliation: plan.reconciliation,
     fingerprint: draftFingerprint(after, target.spreadsheetId),
   };
 }

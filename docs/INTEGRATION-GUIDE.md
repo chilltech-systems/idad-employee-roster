@@ -46,7 +46,7 @@ Implement the contract used by `src/lib/roster-source.ts`. The adapter must retu
 
 ### 4. Replace the schedule adapter
 
-Preserve the logic in `src/lib/draft-schedule.ts`: stable hidden IDs, historical aliases, collision handling, explicit exclusions, complete-snapshot validation, and separation of ready full exports from scoped tests. A new adapter may target another spreadsheet or scheduling product, but it must not overwrite manager-entered names/times without an explicit reviewed contract.
+Preserve the logic in `src/lib/draft-schedule.ts`: stable hidden IDs, historical aliases, collision handling, explicit exclusions, complete-snapshot validation, and separation of ready full exports from scoped tests. The Texas setup contract may normalize a manager-entered name only when exact normalized aliases identify one active directory employee within the same store; it leaves and reports every unknown or ambiguous cell. A new adapter may target another spreadsheet or scheduling product, but it must not overwrite names or times outside an explicit reviewed reconciliation contract.
 
 ### 5. Extract domain logic into a larger codebase
 

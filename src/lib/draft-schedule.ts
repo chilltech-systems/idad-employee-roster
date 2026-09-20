@@ -53,6 +53,21 @@ export type DraftGrid = {
     }[];
   }[];
 };
+export type ScheduleNameMatch = {
+  cell: string;
+  row: number;
+  storeId: string;
+  from: string;
+  to: string;
+};
+export type ScheduleNameMiss = {
+  cell: string;
+  row: number;
+  storeId: string;
+  value: string;
+  reason: "no-match" | "ambiguous";
+  candidates: string[];
+};
 export function cell(
   g: DraftGrid,
   sheetId: number,
@@ -275,7 +290,26 @@ export function planDraftSync(
   }
   if (rows.length >= 4999)
     throw new Problem(409, "Roster alias capacity reached.");
-  const requests: Record<string, unknown>[] = [];
+  const requests: Record<string, unknown>[] = [],
+    reconciliation = reconcileTexasScheduleNames(g, scoped, rows, labels);
+  for (const match of reconciliation.reconciled)
+    requests.push({
+      updateCells: {
+        range: {
+          sheetId: MAIN_ID,
+          startRowIndex: match.row - 1,
+          endRowIndex: match.row,
+          startColumnIndex: 13,
+          endColumnIndex: 14,
+        },
+        rows: [
+          {
+            values: [{ userEnteredValue: { stringValue: match.to } }],
+          },
+        ],
+        fields: "userEnteredValue",
+      },
+    });
   const gridRows = g.sheets.find((s) => s.properties.sheetId === ROSTER_ID)!
     .properties.gridProperties.rowCount;
   if (gridRows < 5000)
@@ -354,7 +388,8 @@ export function planDraftSync(
       },
     });
   }
-  // Expand only existing hidden lookup formula bounds; never write selected names or shifts.
+  // Expand only existing hidden lookup formula bounds. Name writes above are
+  // limited to unique, store-scoped reconciliation; shifts remain untouched.
   const formulas = [];
   for (let r = 2; r <= 181; r++)
     formulas.push({
@@ -395,7 +430,107 @@ export function planDraftSync(
         fields: "userEnteredValue",
       },
     });
-  return { requests, roster: rows, active: labels.size };
+  return { requests, roster: rows, active: labels.size, reconciliation };
+}
+
+function scheduleNameKey(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("en-US")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function legacyScheduleName(value: string) {
+  return value
+    .replace(/\s*\([^)]*\)\s*$/, "")
+    .replace(/\s*#\s*\d+\s*$/, "")
+    .replace(/\s+\d+\s*$/, "")
+    .replace(/\s*\*+\s*$/, "")
+    .trim();
+}
+
+export function reconcileTexasScheduleNames(
+  g: DraftGrid,
+  employees: Employee[],
+  roster: string[][],
+  labels: Map<string, string>,
+) {
+  const candidates = new Map<string, Map<string, string>>(),
+    add = (
+      storeId: string,
+      value: string,
+      employeeId: string,
+      label: string,
+    ) => {
+      const key = scheduleNameKey(value);
+      if (!key) return;
+      const scopedKey = `${storeId}|${key}`;
+      let matches = candidates.get(scopedKey);
+      if (!matches) candidates.set(scopedKey, (matches = new Map()));
+      matches.set(employeeId, label);
+    };
+  for (const employee of employees) {
+    if (employee.status !== "active") continue;
+    const label = labels.get(employee.id);
+    if (!label) continue;
+    const sourceNames = [
+      label,
+      displayName(employee),
+      employee.firstName,
+      `${employee.firstName} ${employee.lastName}`,
+      `${employee.lastName}, ${employee.firstName}`,
+      employee.posName,
+      employee.observedPosName || "",
+      ...employee.aliases,
+    ];
+    for (const name of [employee.posName, employee.observedPosName || ""])
+      if (name.trim()) sourceNames.push(name.trim().split(/\s+/)[0]);
+    for (const name of sourceNames)
+      add(employee.storeId, name, employee.id, label);
+  }
+
+  const validLabels = new Set(roster.map((row) => `${row[0]}|${row[4]}`)),
+    reconciled: ScheduleNameMatch[] = [],
+    unmatched: ScheduleNameMiss[] = [];
+  for (const entry of mapping.rows) {
+    const selected = textValue(
+      cell(g, MAIN_ID, entry.scheduleRow, mapping.nameColumn),
+    ).trim();
+    if (!selected) continue;
+    if (validLabels.has(`${entry.storeId}|${selected}`)) continue;
+    const matches = new Map<string, string>();
+    for (const key of new Set([
+      scheduleNameKey(selected),
+      scheduleNameKey(legacyScheduleName(selected)),
+    ]))
+      for (const [employeeId, label] of candidates.get(
+        `${entry.storeId}|${key}`,
+      ) || [])
+        matches.set(employeeId, label);
+    const labelsFound = [...new Set(matches.values())].sort((a, b) =>
+      a.localeCompare(b, "en-US"),
+    );
+    if (matches.size === 1) {
+      reconciled.push({
+        cell: `N${entry.scheduleRow}`,
+        row: entry.scheduleRow,
+        storeId: entry.storeId,
+        from: selected,
+        to: labelsFound[0],
+      });
+    } else {
+      unmatched.push({
+        cell: `N${entry.scheduleRow}`,
+        row: entry.scheduleRow,
+        storeId: entry.storeId,
+        value: selected,
+        reason: matches.size ? "ambiguous" : "no-match",
+        candidates: labelsFound,
+      });
+    }
+  }
+  return { reconciled, unmatched };
 }
 function time(c: GridCell) {
   const n = c.effectiveValue?.numberValue;

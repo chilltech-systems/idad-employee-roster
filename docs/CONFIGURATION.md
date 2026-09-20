@@ -58,8 +58,10 @@ workbook. New ScheduleDB records never advance an active target automatically.
 Manual and hosted schedule synchronization update the independently selected workbooks.
 Texas retains its hidden identity roster, column-N dropdowns and validated shift
 exports. California refreshes the six reviewed store lists in `Employee Names
-Master` and the 105 strict column-R dropdown cells. Neither sync writes a
-manager-selected schedule name, shift time, format or formula.
+Master` and the 105 strict column-R dropdown cells. Texas setup may normalize an
+existing column-N string to one unique store-scoped directory label and reports
+every unresolved cell. Outside that reviewed reconciliation, neither sync writes
+a manager-selected schedule name, shift time, format or formula.
 
 ## Operator-only setup variables
 

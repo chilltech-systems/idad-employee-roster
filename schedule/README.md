@@ -33,7 +33,7 @@ Only the two explicit selected targets are Google write destinations. The POS ro
 
 `Directory Roster` A:F holds store, directory ID, POS ID/source, selection label and POS name. Historical labels are retained, including inactive selections. New labels cannot silently claim existing unbound text. Names are disambiguated by full/preferred names, never ID suffixes. Managers need to choose distinct preferred names if both names collide.
 
-`Directory Bindings` D:E resolves selected exact labels against the hidden roster through row 5000. Lookup misses stay blank with a visible match-status instruction rather than a guessed identity. Hourly Calculations continues reading the existing names and times. Sync changes only helper values/formulas and N-cell validation; it never writes selected names, time cells, formats, or layouts.
+`Directory Bindings` D:E resolves selected exact labels against the hidden roster through row 5000. During sync, an existing Texas column-N name is normalized to the exact dropdown label only when its current label, full/POS name, first name or explicit alias identifies one active directory employee within that store. Unknown and ambiguous strings remain unchanged and are returned with their cell addresses in the sync result. Hourly Calculations continues reading the existing names and times. Sync changes helper values/formulas, N-cell validation and these uniquely reconciled names; it never writes time cells, formats or layouts.
 
 ## Export
 
