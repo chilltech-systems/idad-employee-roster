@@ -75,6 +75,12 @@ active, exact directory and POS identities. Its durable weekly dispatch ledger
 allows one successful send, blocks replay, and treats uncertain webhook results
 as terminal until reviewed.
 
+Manual and hosted schedule synchronization update both allowlisted workbooks.
+Texas retains its hidden identity roster, column-N dropdowns and validated shift
+exports. California refreshes the six reviewed store lists in `Employee Names
+Master` and the 105 strict column-R dropdown cells. Neither sync writes a
+manager-selected schedule name, shift time, format or formula.
+
 ## Operator-only setup variables
 
 The test provisioner and account setup scripts use additional confirmation and account variables. Supply them through an owner-only environment file or secret manager, never command arguments, Git, logs, screenshots, or generated documentation.
