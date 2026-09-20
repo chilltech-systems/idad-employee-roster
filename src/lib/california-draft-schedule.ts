@@ -238,7 +238,22 @@ export function californiaDraftFingerprint(
                 mapping.schedule.nameColumn,
               ),
             ),
+            ...mapping.schedule.days.flatMap((day) => [
+              cell(grid, mapping.schedule.sheetId, row, day.startColumn)
+                .effectiveValue,
+              cell(grid, mapping.schedule.sheetId, row, day.endColumn)
+                .effectiveValue,
+            ]),
           ]),
+        ),
+        dates: mapping.schedule.days.map(
+          (day) =>
+            cell(
+              grid,
+              mapping.schedule.sheetId,
+              mapping.schedule.weekStart.row,
+              day.dateColumn,
+            ).effectiveValue,
         ),
       }),
     )

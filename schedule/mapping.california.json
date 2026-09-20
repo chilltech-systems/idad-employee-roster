@@ -6,7 +6,55 @@
     "sheetId": 1883086419,
     "rowCount": 875,
     "columnCount": 106,
-    "nameColumn": 18
+    "nameColumn": 18,
+    "weekStart": {
+      "row": 1,
+      "column": 20
+    },
+    "days": [
+      {
+        "name": "Sunday",
+        "dateColumn": 20,
+        "startColumn": 20,
+        "endColumn": 21
+      },
+      {
+        "name": "Monday",
+        "dateColumn": 26,
+        "startColumn": 26,
+        "endColumn": 27
+      },
+      {
+        "name": "Tuesday",
+        "dateColumn": 32,
+        "startColumn": 32,
+        "endColumn": 33
+      },
+      {
+        "name": "Wednesday",
+        "dateColumn": 38,
+        "startColumn": 38,
+        "endColumn": 39
+      },
+      {
+        "name": "Thursday",
+        "dateColumn": 44,
+        "startColumn": 44,
+        "endColumn": 45
+      },
+      {
+        "name": "Friday",
+        "dateColumn": 50,
+        "startColumn": 50,
+        "endColumn": 51
+      },
+      {
+        "name": "Saturday",
+        "dateColumn": 56,
+        "startColumn": 56,
+        "endColumn": 57
+      }
+    ]
   },
   "master": {
     "sheet": "Employee Names Master",

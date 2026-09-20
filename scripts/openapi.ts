@@ -7,6 +7,7 @@ import {
   personLinkSchema,
   candidateLinkSchema,
 } from "../src/lib/people";
+import { californiaScheduleExportRequestSchema } from "../src/lib/california-schedule-export";
 const json = (schema: Record<string, unknown>) => ({
   "application/json": { schema },
 });
@@ -47,6 +48,7 @@ function endpoint(
   options: {
     public?: boolean;
     reportingToken?: boolean;
+    californiaExportToken?: boolean;
     store?: boolean;
     csv?: boolean;
     id?: boolean;
@@ -61,7 +63,9 @@ function endpoint(
       ? []
       : options.reportingToken
         ? [{ reportingToken: [] }]
-        : [{ session: [] }],
+        : options.californiaExportToken
+          ? [{ californiaExportToken: [] }]
+          : [{ session: [] }],
     parameters: [
       ...(options.store
         ? [
@@ -97,7 +101,9 @@ function endpoint(
             },
           ]
         : []),
-      ...(method !== "get" && !options.reportingToken
+      ...(method !== "get" &&
+      !options.reportingToken &&
+      !options.californiaExportToken
         ? [
             {
               in: "header",
@@ -416,6 +422,20 @@ endpoint(
   },
 );
 endpoint(
+  "/schedules/california/legacy-export",
+  "post",
+  "Prepare and record the current-week California schedule dispatch for n8n",
+  z.toJSONSchema(californiaScheduleExportRequestSchema),
+  {
+    californiaExportToken: true,
+    response: {
+      type: "object",
+      description:
+        "Action-specific preparation, dispatch, completion, or cutoff result.",
+    },
+  },
+);
+endpoint(
   "/admin/people",
   "get",
   "Admin: all shared employee profiles, sorted by first then last name",
@@ -470,6 +490,12 @@ await writeFile(
             scheme: "bearer",
             description:
               "Dedicated machine credential limited to validated reporting exports.",
+          },
+          californiaExportToken: {
+            type: "http",
+            scheme: "bearer",
+            description:
+              "Dedicated machine credential limited to the automated California schedule dispatch.",
           },
         },
       },

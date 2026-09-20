@@ -77,7 +77,7 @@ test("migration preview is read-only, alphabetical and never merges equal names"
   assert.equal(p.profiles[0].firstName, "Alex");
   assert.equal(profile(s).homeStoreId, "TX-DEMO-1");
 });
-test("one verified Qu identity carries to linked stores while unresolved assignments stay pending", () => {
+test("one verified POS identity carries to linked stores while unresolved assignments stay pending", () => {
   const s = seed();
   assign(s);
   assign(s, "demo-2");
@@ -240,7 +240,7 @@ test("new-store POS discovery stays in review and explicit linking verifies the 
   assert.equal(listCandidates(s, admin).length, 0);
   assert.equal(profile(s).homeStoreId, "TX-DEMO-1");
 });
-test("verified Qu IDs carry to linked stores while punch matching remains store-scoped", () => {
+test("verified POS IDs carry to linked stores while punch matching remains store-scoped", () => {
   const s = seed();
   assign(s);
   const e = s.employees.find((e) => e.posIdentityPending)!;
@@ -281,9 +281,8 @@ test("verified Qu IDs carry to linked stores while punch matching remains store-
   assert.equal(result.records[0].result, "no-punch");
   assert.deepEqual(result.unmatchedPunchIds, ["p"]);
   assert.equal(
-    laborPreview(exported, [
-      { ...punch, storeId: e.storeId },
-    ]).records[0].result,
+    laborPreview(exported, [{ ...punch, storeId: e.storeId }]).records[0]
+      .result,
     "matched",
   );
   e.posEmployeeId = "destination-17";
@@ -301,7 +300,7 @@ test("verified Qu IDs carry to linked stores while punch matching remains store-
   );
 });
 
-test("Qu carry-over fails closed for ambiguous sibling IDs or destination collisions", () => {
+test("POS carry-over fails closed for ambiguous sibling IDs or destination collisions", () => {
   const s = seed();
   assign(s);
   const pending = s.employees.find(
@@ -314,7 +313,10 @@ test("Qu carry-over fails closed for ambiguous sibling IDs or destination collis
     storeId: "TX-OTHER",
     posEmployeeId: "different-id",
   });
-  assert.equal(resolvedPosIdentity(pending, s.employees).posIdentityPending, true);
+  assert.equal(
+    resolvedPosIdentity(pending, s.employees).posIdentityPending,
+    true,
+  );
 
   s.employees.pop();
   s.employees.push({
@@ -324,7 +326,17 @@ test("Qu carry-over fails closed for ambiguous sibling IDs or destination collis
     posEmployeeId: "00101",
     verification: "confirmed",
   });
-  assert.equal(resolvedPosIdentity(pending, s.employees).posIdentityPending, true);
+  assert.equal(
+    resolvedPosIdentity(pending, s.employees).posIdentityPending,
+    true,
+  );
+
+  s.employees.pop();
+  pending.posSource = "Toast";
+  assert.equal(
+    resolvedPosIdentity(pending, s.employees).posIdentityPending,
+    true,
+  );
 });
 
 test("blank legacy POS IDs fail export instead of becoming implicitly pending", () => {

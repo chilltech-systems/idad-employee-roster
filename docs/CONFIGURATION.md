@@ -47,6 +47,7 @@ observed identities are retained when the rolling window advances.
 | `PORTAL_HOSTED_SYNC_ENABLED`               | Hosted daily endpoint gate.                                                                                                 |
 | `CRON_SECRET`                              | Random machine credential for the protected daily endpoint.                                                                 |
 | `PORTAL_REPORT_EXPORT_TOKEN_SHA256`        | SHA-256 hex digest of the dedicated bearer token allowed only to validate and retrieve complete labor-report shift exports. |
+| `PORTAL_CALIFORNIA_EXPORT_TOKEN_SHA256`    | SHA-256 hex digest of the dedicated n8n bearer token for preparing and recording California schedule dispatches.            |
 
 The two fixed draft IDs are the server-owned `Test Schedule — Current Directory
 Draft` targets and remain the initial active targets. The administrator can save
@@ -64,6 +65,15 @@ column-R string, to one unique store-scoped directory label. Both return every
 unresolved cell in the sync result. Outside that reviewed reconciliation,
 neither sync writes a manager-selected schedule name, shift time, format or
 formula.
+
+The protected California legacy-export endpoint does not use the manually
+selected schedule target. It calculates the current Sunday-Saturday week in
+`America/Chicago`, requires exactly one matching California entry in the
+ScheduleDB catalog, and reads that workbook twice. It returns the existing
+`idad-resource` webhook payload only when all six mapped stores reconcile to
+active, exact directory and POS identities. Its durable weekly dispatch ledger
+allows one successful send, blocks replay, and treats uncertain webhook results
+as terminal until reviewed.
 
 ## Operator-only setup variables
 

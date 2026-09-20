@@ -27,6 +27,7 @@ The primary integration contract is `docs/openapi.json`. The most important boun
 - Compatibility CSV for legacy consumers that cannot yet accept extended JSON.
 - A protected cron endpoint for the daily refresh/schedule cycle.
 - A report-only bearer-token endpoint that validates the live copied schedule and returns complete accepted shift exports without granting employee-management access.
+- A separate machine-token endpoint that resolves, validates, and records the one automated California schedule dispatch for the current Central-time week.
 
 Treat the compatibility CSV as a transition format. New integrations should use JSON and retain the directory ID, store ID, POS source, POS employee ID, shared person ID, assignment status, and pending-POS flag as separate fields.
 
@@ -62,6 +63,17 @@ Do not copy only the UI components; the server-side permission, revision, transa
 
 The local IDAD Data Gateway calls `POST /api/v1/reporting/draft-exports/validate` with the requested Sunday and active Texas store IDs. Configure only the SHA-256 digest of the dedicated token as `PORTAL_REPORT_EXPORT_TOKEN_SHA256`; the caller retains the raw `IDAD_DIRECTORY_REPORT_TOKEN`. The endpoint does not accept exclusions, does not use an administrator session, and cannot manage employees. A store is returned as blocked when any populated shift has an exception, no shift exists, or POS verification remains pending. Ready responses include the exact accepted `DraftExport` fingerprint and revision for downstream reconciliation.
 
+### 7. Automated California schedule consumer
+
+n8n calls `POST /api/v1/schedules/california/legacy-export` with the dedicated
+California bearer token. The `prepare` action automatically resolves the unique
+catalog workbook for the current Central-time Sunday, reads it stably, validates
+all six store sections, and returns the unchanged legacy webhook envelope. n8n
+must call `begin` before the receiver and `complete` afterward. A successful or
+ambiguous receipt is terminal for the week; an identical successful week is
+never returned for another send. The endpoint never calls the downstream
+webhook itself.
+
 ## Data mapping checklist
 
 Before implementation, map every external field to one of these concepts:
@@ -76,10 +88,11 @@ Before implementation, map every external field to one of these concepts:
 | `revision`          | Concurrency token required for reviewed mutations.                         |
 | `status`            | Active/inactive assignment state retained historically.                    |
 
-For Qu only, one unique `confirmed` or manually verified employee ID may be reused by another
-pending store assignment belonging to the same explicitly linked `personId`. The carry-over is
-rejected when verified sibling assignments disagree or the destination store already assigns that
-ID to a different person. Store attribution remains mandatory for punch matching.
+For any POS source, one unique `confirmed` or manually verified employee ID may be reused by
+another pending store assignment belonging to the same explicitly linked `personId` and the same
+`posSource`. The carry-over is rejected when verified sibling assignments disagree, when sources
+differ, or when the destination store already assigns that ID to a different person. Store
+attribution remains mandatory for punch matching.
 
 ## Acceptance gates
 

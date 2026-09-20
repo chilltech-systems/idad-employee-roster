@@ -11,6 +11,11 @@ The manager interface is the **Texas Schedule** tab of the administrator-selecte
 
 `mapping.texas.json` is the reviewed mapping: 174 column-N name cells across eight stores, excluding six merged non-name rows. TX-162 rows 265-280 are all active schedule rows. Sunday starts/ends use P/Q, then U/V, Z/AA, AE/AF, AJ/AK, AO/AP and AT/AU. P1 supplies the Sunday date. The main sheet's 688-by-96 dimensions are checked before syncing/exporting; structural row changes require remapping.
 
+`mapping.california.json` also records the direct export cells. T1 supplies the
+Sunday date; starts/ends use T/U, Z/AA, AF/AG, AL/AM, AR/AS, AX/AY and BD/BE.
+The direct export reads all six reviewed store row blocks and the matching
+`Employee Names Master` IDs without writing schedule cells.
+
 ## Target selection and production sync
 
 Administrators select Texas and California independently. Each selector shows

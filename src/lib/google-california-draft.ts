@@ -108,7 +108,7 @@ export async function californiaDraftClient(
       );
       query.append(
         "ranges",
-        `'${mapping.schedule.sheet}'!R1:R${Math.max(...mapping.stores.map((store) => store.scheduleEndRow))}`,
+        `'${mapping.schedule.sheet}'!R1:BE${Math.max(...mapping.stores.map((store) => store.scheduleEndRow))}`,
       );
       return json(
         await request(base + "?" + query, {

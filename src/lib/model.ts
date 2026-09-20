@@ -115,6 +115,29 @@ export type ScheduleTarget = {
     message?: string;
   };
 };
+export type CaliforniaScheduleDispatchStatus =
+  "prepared" | "dispatching" | "succeeded" | "failed" | "ambiguous";
+export type CaliforniaScheduleDispatch = {
+  key: string;
+  state: "california";
+  brand: "jamba";
+  weekStart: string;
+  weekEnd: string;
+  status: CaliforniaScheduleDispatchStatus;
+  revision: number;
+  preparedAt?: string;
+  dispatchingAt?: string;
+  completedAt?: string;
+  workbookId?: string;
+  scheduleId?: string;
+  fingerprint?: string;
+  shiftCount?: number;
+  countsByStore?: Record<string, number>;
+  attemptId?: string;
+  processed?: number;
+  message?: string;
+  cutoffNotificationAt?: string;
+};
 export type State = {
   employees: Employee[];
   access: Access[];
@@ -138,6 +161,7 @@ export type State = {
     };
     scheduleTargets?: Partial<Record<ScheduleTargetState, ScheduleTarget>>;
     draftExports?: Record<string, import("./draft-schedule").DraftExport>;
+    californiaScheduleDispatches?: Record<string, CaliforniaScheduleDispatch>;
   };
 };
 export class Problem extends Error {
@@ -182,9 +206,10 @@ export type ResolvedPosIdentity = {
 };
 
 /**
- * Qu employee IDs are global across Qu stores. A pending assignment may use one
- * unique ID already verified on another assignment for the same linked person.
- * Ambiguous IDs and destination-store collisions remain pending.
+ * A pending multi-store assignment may use one unique POS ID already verified
+ * on another explicitly linked assignment for the same person and POS source.
+ * Ambiguous IDs, cross-source reuse, and destination-store collisions remain
+ * pending.
  */
 export function resolvedPosIdentity(
   employee: Employee,
@@ -195,15 +220,13 @@ export function resolvedPosIdentity(
       posEmployeeId: employee.posEmployeeId,
       posIdentityPending: false,
     };
-  if (employee.posSource.toLocaleLowerCase("en-US") !== "qu")
-    return { posEmployeeId: "", posIdentityPending: true };
-
-  const id = personId(employee);
+  const id = personId(employee),
+    posSource = employee.posSource.toLocaleLowerCase("en-US");
   const verified = employees.filter(
     (other) =>
       other.id !== employee.id &&
       personId(other) === id &&
-      other.posSource.toLocaleLowerCase("en-US") === "qu" &&
+      other.posSource.toLocaleLowerCase("en-US") === posSource &&
       !posPending(other) &&
       ["confirmed", "manual"].includes(other.verification),
   );
@@ -215,7 +238,7 @@ export function resolvedPosIdentity(
     (other) =>
       other.id !== employee.id &&
       other.storeId === employee.storeId &&
-      other.posSource.toLocaleLowerCase("en-US") === "qu" &&
+      other.posSource.toLocaleLowerCase("en-US") === posSource &&
       !posPending(other) &&
       other.posEmployeeId === posEmployeeId &&
       personId(other) !== id,

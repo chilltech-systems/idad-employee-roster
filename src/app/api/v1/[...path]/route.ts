@@ -51,6 +51,16 @@ import {
   saveScheduleTarget,
   targetOverview,
 } from "@/lib/schedule-targets";
+import {
+  beginCaliforniaDispatch,
+  buildCurrentCaliforniaExport,
+  californiaScheduleExportRequestSchema,
+  completeCaliforniaDispatch,
+  currentChicagoWeek,
+  prepareCaliforniaDispatch,
+  recordCaliforniaCutoff,
+  requireCaliforniaScheduleExportToken,
+} from "@/lib/california-schedule-export";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -66,8 +76,11 @@ async function handler(
     const configuredOrigin = portalOrigin();
     const reportingExport =
       path === "reporting/draft-exports/validate" && method === "POST";
+    const californiaExport =
+      path === "schedules/california/legacy-export" && method === "POST";
     if (
       !reportingExport &&
+      !californiaExport &&
       !["GET", "HEAD"].includes(method) &&
       req.headers.get("origin") !== configuredOrigin
     )
@@ -101,6 +114,62 @@ async function handler(
       throw new Problem(400, "A JSON object is required.");
     const token = req.cookies.get(cookieName)?.value;
     const repo = repository();
+    if (californiaExport) {
+      requireCaliforniaScheduleExportToken(req.headers.get("authorization"));
+      const payload = californiaScheduleExportRequestSchema.parse(body),
+        currentWeek = currentChicagoWeek();
+      if (payload.action === "prepare") {
+        const employees = await repo.transact((state) =>
+            structuredClone(state.employees),
+          ),
+          candidate = await buildCurrentCaliforniaExport(new Date(), {
+            employees,
+          }),
+          result = await repo.transact((state) =>
+            prepareCaliforniaDispatch(state, candidate),
+          );
+        return NextResponse.json(result, {
+          headers: { "Cache-Control": "no-store" },
+        });
+      }
+      if ("weekStart" in payload && payload.weekStart !== currentWeek.weekStart)
+        throw new Problem(
+          409,
+          "Only the current California week may dispatch.",
+        );
+      if (payload.action === "begin") {
+        const result = await repo.transact((state) =>
+          beginCaliforniaDispatch(
+            state,
+            payload.weekStart,
+            payload.fingerprint,
+          ),
+        );
+        return NextResponse.json(result, {
+          headers: { "Cache-Control": "no-store" },
+        });
+      }
+      if (payload.action === "complete") {
+        const result = await repo.transact((state) =>
+          completeCaliforniaDispatch(state, payload),
+        );
+        return NextResponse.json(result, {
+          headers: { "Cache-Control": "no-store" },
+        });
+      }
+      const result = await repo.transact((state) =>
+        recordCaliforniaCutoff(
+          state,
+          currentWeek.weekStart,
+          currentWeek.weekEnd,
+          payload.message ||
+            "California schedule was not imported by 8:00 a.m. Central.",
+        ),
+      );
+      return NextResponse.json(result, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
     if (reportingExport) {
       requireReportingExportToken(req.headers.get("authorization"));
       const payload = reportingDraftExportRequestSchema.parse(body);

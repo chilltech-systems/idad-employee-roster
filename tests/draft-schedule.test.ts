@@ -387,7 +387,7 @@ test("pending assignments sync names-only labels and hidden IDs, export schedule
   assert.equal(inactive.active, 1);
 });
 
-test("a pending Qu assignment inherits one confirmed ID from the same linked person", () => {
+test("a pending assignment inherits one confirmed ID from the same linked person and POS source", () => {
   const g = grid();
   const source = {
     ...employee("source"),
