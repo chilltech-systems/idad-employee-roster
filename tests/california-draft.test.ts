@@ -15,7 +15,11 @@ import {
   CALIFORNIA_DRAFT_ID,
   californiaDraftClient,
 } from "../src/lib/google-california-draft";
-import type { DraftGrid, GridCell } from "../src/lib/draft-schedule";
+import {
+  textValue,
+  type DraftGrid,
+  type GridCell,
+} from "../src/lib/draft-schedule";
 import type { Employee } from "../src/lib/model";
 import { seed } from "../src/lib/seed";
 
@@ -31,10 +35,14 @@ function set(
     )!,
     rows = sheet.data![0].rowData!;
   rows[row - 1] ??= { values: [] };
+  const existing = rows[row - 1].values![column - 1];
   rows[row - 1].values![column - 1] = {
     userEnteredValue: { stringValue: value },
     effectiveValue: { stringValue: value },
     formattedValue: value,
+    ...(existing?.dataValidation
+      ? { dataValidation: existing.dataValidation }
+      : {}),
   };
 }
 
@@ -197,7 +205,56 @@ test("California sync controls master labels and validation without writing sele
   );
 });
 
-test("California sync rejects an unbound typed schedule name", () => {
+test("California sync reconciles one unique store-scoped legacy name", () => {
+  const employees = mapping.stores.map((store, index) =>
+      employee(store.storeId, index),
+    ),
+    draft = grid(employees),
+    row = mapping.stores[0].scheduleStartRow;
+  set(
+    draft,
+    mapping.schedule.sheetId,
+    row,
+    mapping.schedule.nameColumn,
+    "Jamie",
+  );
+  const plan = planCaliforniaDraftSync(draft, employees);
+  assert.deepEqual(plan.reconciliation, {
+    reconciled: [
+      {
+        cell: `R${row}`,
+        row,
+        storeId: mapping.stores[0].storeId,
+        from: "Jamie",
+        to: "Jamie S.",
+      },
+    ],
+    unmatched: [],
+  });
+  assert.ok(
+    plan.requests.some(
+      (request: any) =>
+        request.updateCells?.range.sheetId === mapping.schedule.sheetId,
+    ),
+  );
+  apply(draft, plan.requests);
+  assertCaliforniaDraftReadback(
+    draft,
+    plan.roster,
+    CALIFORNIA_DRAFT_ID,
+    plan.reconciliation,
+  );
+  assert.equal(
+    textValue(
+      draft.sheets[0].data![0].rowData![row - 1].values![
+        mapping.schedule.nameColumn - 1
+      ],
+    ),
+    "Jamie S.",
+  );
+});
+
+test("California sync reports an unbound typed schedule name", () => {
   const employees = mapping.stores.map((store, index) =>
       employee(store.storeId, index),
     ),
@@ -209,9 +266,55 @@ test("California sync rejects an unbound typed schedule name", () => {
     mapping.schedule.nameColumn,
     "Unknown P.",
   );
-  assert.throws(
-    () => planCaliforniaDraftSync(draft, employees),
-    /Unbound California schedule name/,
+  const plan = planCaliforniaDraftSync(draft, employees);
+  assert.deepEqual(
+    plan.reconciliation.unmatched.find((miss) => miss.value === "Unknown P."),
+    {
+      cell: `R${mapping.stores[0].scheduleStartRow + 1}`,
+      row: mapping.stores[0].scheduleStartRow + 1,
+      storeId: mapping.stores[0].storeId,
+      value: "Unknown P.",
+      reason: "no-match",
+      candidates: [],
+    },
+  );
+  apply(draft, plan.requests);
+  assertCaliforniaDraftReadback(
+    draft,
+    plan.roster,
+    CALIFORNIA_DRAFT_ID,
+    plan.reconciliation,
+  );
+});
+
+test("California sync leaves an ambiguous first name unchanged", () => {
+  const employees = mapping.stores.map((store, index) =>
+      employee(store.storeId, index),
+    ),
+    second = employee(mapping.stores[0].storeId, 99),
+    draft = grid(employees),
+    row = mapping.stores[0].scheduleStartRow;
+  second.lastName = "Second";
+  employees.push(second);
+  set(
+    draft,
+    mapping.schedule.sheetId,
+    row,
+    mapping.schedule.nameColumn,
+    "Jamie",
+  );
+  const plan = planCaliforniaDraftSync(draft, employees),
+    miss = plan.reconciliation.unmatched.find(
+      (candidate) => candidate.cell === `R${row}`,
+    );
+  assert.equal(miss?.reason, "ambiguous");
+  assert.deepEqual(miss?.candidates, ["Jamie S.", "Jamie Second"]);
+  assert.ok(
+    !plan.requests.some(
+      (request: any) =>
+        request.updateCells?.range.sheetId === mapping.schedule.sheetId &&
+        request.updateCells.range.endRowIndex === row,
+    ),
   );
 });
 
@@ -246,7 +349,7 @@ test("California first-sync preparation seeds only reviewed master ranges and is
   assert.deepEqual(repeated.requests, []);
 });
 
-test("California transport rejects schedule values and unrelated validation", async () => {
+test("California transport allows mapped reconciliation and rejects unrelated validation", async () => {
   const directory = await mkdtemp(join(tmpdir(), "portal-california-draft-")),
     names = [
       "PORTAL_MODE",
@@ -329,7 +432,27 @@ test("California transport rejects schedule values and unrelated validation", as
     );
     assert.equal(writes.length, 0);
     await client.write([update]);
+    await client.write([
+      {
+        updateCells: {
+          range: {
+            sheetId: mapping.schedule.sheetId,
+            startRowIndex: mapping.stores[0].scheduleStartRow - 1,
+            endRowIndex: mapping.stores[0].scheduleStartRow,
+            startColumnIndex: mapping.schedule.nameColumn - 1,
+            endColumnIndex: mapping.schedule.nameColumn,
+          },
+          rows: [
+            {
+              values: [{ userEnteredValue: { stringValue: "Jamie S." } }],
+            },
+          ],
+          fields: "userEnteredValue",
+        },
+      },
+    ]);
     assert.deepEqual(writes, [
+      `https://sheets.googleapis.com/v4/spreadsheets/${CALIFORNIA_DRAFT_ID}:batchUpdate`,
       `https://sheets.googleapis.com/v4/spreadsheets/${CALIFORNIA_DRAFT_ID}:batchUpdate`,
     ]);
   } finally {

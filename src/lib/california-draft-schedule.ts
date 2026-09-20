@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
 import mapping from "../../schedule/mapping.california.json";
-import { cell, textValue, type DraftGrid } from "./draft-schedule";
+import {
+  cell,
+  legacyScheduleName,
+  scheduleNameKey,
+  textValue,
+  type DraftGrid,
+  type ScheduleNameMatch,
+  type ScheduleNameMiss,
+} from "./draft-schedule";
 import { displayName, Problem, type Employee } from "./model";
 import {
   CALIFORNIA_DRAFT_ID,
@@ -167,13 +175,6 @@ export function planCaliforniaDraftPreparation(
       if (employee.status === "active" || selected.has(label))
         rows.push({ storeId: store.storeId, directoryId: employee.id, label });
     }
-    const available = new Set(rows.map((row) => row.label));
-    for (const selectedName of selected)
-      if (!available.has(selectedName))
-        throw new Problem(
-          409,
-          `Unbound California schedule name at ${store.storeId}; review required.`,
-        );
     const existingLength = Array.from(
       { length: mapping.master.endRow - mapping.master.startRow + 1 },
       (_, index) => mapping.master.startRow + index,
@@ -326,11 +327,6 @@ export function planCaliforniaDraftSync(
           row.label.toLocaleLowerCase("en-US") ===
             label.toLocaleLowerCase("en-US"),
       );
-      if (!existing && selected.has(label))
-        throw new Problem(
-          409,
-          `Clear the unbound matching name in ${store.storeId}, sync, then explicitly reselect the employee.`,
-        );
       const entry = {
         storeId: store.storeId,
         directoryId: employee.id,
@@ -342,12 +338,7 @@ export function planCaliforniaDraftSync(
     for (const label of selected) {
       if (storeRows.some((row) => row.label === label)) continue;
       const existing = previousByLabel.get(label.toLocaleLowerCase("en-US"));
-      if (!existing)
-        throw new Problem(
-          409,
-          `Unbound California schedule name at ${store.storeId}; review required.`,
-        );
-      storeRows.push(existing);
+      if (existing) storeRows.push(existing);
     }
     storeRows.sort((a, b) => a.label.localeCompare(b.label, "en-US"));
     const capacity = mapping.master.endRow - mapping.master.startRow + 1;
@@ -414,17 +405,137 @@ export function planCaliforniaDraftSync(
     });
     roster.push(...storeRows);
   }
-  return { requests, roster, active: activeCount };
+  const reconciliation = reconcileCaliforniaScheduleNames(
+    grid,
+    employees,
+    roster,
+  );
+  for (const match of reconciliation.reconciled)
+    requests.push({
+      updateCells: {
+        range: {
+          sheetId: mapping.schedule.sheetId,
+          startRowIndex: match.row - 1,
+          endRowIndex: match.row,
+          startColumnIndex: mapping.schedule.nameColumn - 1,
+          endColumnIndex: mapping.schedule.nameColumn,
+        },
+        rows: [
+          {
+            values: [{ userEnteredValue: { stringValue: match.to } }],
+          },
+        ],
+        fields: "userEnteredValue",
+      },
+    });
+  return { requests, roster, active: activeCount, reconciliation };
+}
+
+export function reconcileCaliforniaScheduleNames(
+  grid: DraftGrid,
+  employees: Employee[],
+  roster: MasterRow[],
+) {
+  const rosterIds = new Set(
+      roster.map((row) => `${row.storeId}|${row.directoryId}`),
+    ),
+    labels = new Map(
+      roster.map((row) => [`${row.storeId}|${row.directoryId}`, row.label]),
+    ),
+    candidates = new Map<string, Map<string, string>>(),
+    add = (
+      storeId: string,
+      value: string,
+      employeeId: string,
+      label: string,
+    ) => {
+      const key = scheduleNameKey(value);
+      if (!key) return;
+      const scopedKey = `${storeId}|${key}`;
+      let matches = candidates.get(scopedKey);
+      if (!matches) candidates.set(scopedKey, (matches = new Map()));
+      matches.set(employeeId, label);
+    };
+  for (const employee of employees) {
+    const scopedId = `${employee.storeId}|${employee.id}`;
+    if (!rosterIds.has(scopedId)) continue;
+    const label = labels.get(scopedId)!;
+    const sourceNames = [
+      label,
+      displayName(employee),
+      employee.firstName,
+      `${employee.firstName} ${employee.lastName}`,
+      `${employee.lastName}, ${employee.firstName}`,
+      employee.posName,
+      employee.observedPosName || "",
+      ...employee.aliases,
+    ];
+    for (const name of [employee.posName, employee.observedPosName || ""])
+      if (name.trim()) sourceNames.push(name.trim().split(/\s+/)[0]);
+    for (const name of sourceNames)
+      add(employee.storeId, name, employee.id, label);
+  }
+
+  const validLabels = new Set(
+      roster.map((row) => `${row.storeId}|${row.label}`),
+    ),
+    reconciled: ScheduleNameMatch[] = [],
+    unmatched: ScheduleNameMiss[] = [];
+  for (const store of mapping.stores)
+    for (const row of scheduleRows(store)) {
+      const selected = textValue(
+        cell(grid, mapping.schedule.sheetId, row, mapping.schedule.nameColumn),
+      ).trim();
+      if (!selected || validLabels.has(`${store.storeId}|${selected}`))
+        continue;
+      const matches = new Map<string, string>();
+      for (const key of new Set([
+        scheduleNameKey(selected),
+        scheduleNameKey(legacyScheduleName(selected)),
+      ]))
+        for (const [employeeId, label] of candidates.get(
+          `${store.storeId}|${key}`,
+        ) || [])
+          matches.set(employeeId, label);
+      const labelsFound = [...new Set(matches.values())].sort((a, b) =>
+        a.localeCompare(b, "en-US"),
+      );
+      if (matches.size === 1)
+        reconciled.push({
+          cell: `R${row}`,
+          row,
+          storeId: store.storeId,
+          from: selected,
+          to: labelsFound[0],
+        });
+      else
+        unmatched.push({
+          cell: `R${row}`,
+          row,
+          storeId: store.storeId,
+          value: selected,
+          reason: matches.size ? "ambiguous" : "no-match",
+          candidates: labelsFound,
+        });
+    }
+  return { reconciled, unmatched };
 }
 
 export function assertCaliforniaDraftReadback(
   grid: DraftGrid,
   expected: MasterRow[],
   workbookId = CALIFORNIA_DRAFT_ID,
+  reconciliation: {
+    reconciled: ScheduleNameMatch[];
+    unmatched: ScheduleNameMiss[];
+  } = { reconciled: [], unmatched: [] },
 ) {
   const actual = californiaMasterFromGrid(grid, workbookId);
   if (JSON.stringify(actual) !== JSON.stringify(expected))
     throw new Problem(409, "California employee master readback differed.");
+  const unmatched = new Map(
+    reconciliation.unmatched.map((miss) => [miss.cell, miss.value]),
+  );
   for (const store of mapping.stores) {
     const options = new Set(
       actual
@@ -442,7 +553,9 @@ export function assertCaliforniaDraftReadback(
         ),
         validation = target.dataValidation;
       if (
-        (textValue(target) && !options.has(textValue(target))) ||
+        (textValue(target) &&
+          !options.has(textValue(target)) &&
+          unmatched.get(`R${row}`) !== textValue(target)) ||
         validation?.condition?.type !== "ONE_OF_RANGE" ||
         validation.condition.values?.[0]?.userEnteredValue !== formula ||
         validation.strict !== true
@@ -450,4 +563,19 @@ export function assertCaliforniaDraftReadback(
         throw new Problem(409, "California dropdown readback differed.");
     }
   }
+  for (const match of reconciliation.reconciled)
+    if (
+      textValue(
+        cell(
+          grid,
+          mapping.schedule.sheetId,
+          match.row,
+          mapping.schedule.nameColumn,
+        ),
+      ) !== match.to
+    )
+      throw new Problem(
+        409,
+        "California name reconciliation readback differed.",
+      );
 }

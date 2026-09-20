@@ -59,9 +59,11 @@ Manual and hosted schedule synchronization update the independently selected wor
 Texas retains its hidden identity roster, column-N dropdowns and validated shift
 exports. California refreshes the six reviewed store lists in `Employee Names
 Master` and the 105 strict column-R dropdown cells. Texas setup may normalize an
-existing column-N string to one unique store-scoped directory label and reports
-every unresolved cell. Outside that reviewed reconciliation, neither sync writes
-a manager-selected schedule name, shift time, format or formula.
+existing column-N string, and California setup may normalize an existing
+column-R string, to one unique store-scoped directory label. Both return every
+unresolved cell in the sync result. Outside that reviewed reconciliation,
+neither sync writes a manager-selected schedule name, shift time, format or
+formula.
 
 ## Operator-only setup variables
 

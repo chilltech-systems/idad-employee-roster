@@ -132,26 +132,48 @@ export async function californiaDraftClient(
                 range?.sheetId === mapping.master.sheetId &&
                 range.startColumnIndex === candidate.nameColumn - 1 &&
                 range.endColumnIndex === candidate.idColumn,
-            );
+            ),
+            scheduleCell = update.rows?.[0]?.values?.[0],
+            masterWrite =
+              !!store &&
+              range.startRowIndex === mapping.master.startRow - 1 &&
+              range.endRowIndex <= mapping.master.endRow &&
+              range.endRowIndex > range.startRowIndex &&
+              Array.isArray(update.rows) &&
+              update.rows.length === range.endRowIndex - range.startRowIndex &&
+              update.rows.every(
+                (row: any) =>
+                  Array.isArray(row.values) && row.values.length === 2,
+              ),
+            scheduleNameWrite =
+              range?.sheetId === mapping.schedule.sheetId &&
+              range.startColumnIndex === mapping.schedule.nameColumn - 1 &&
+              range.endColumnIndex === mapping.schedule.nameColumn &&
+              range.endRowIndex === range.startRowIndex + 1 &&
+              mapping.stores.some(
+                (candidate) =>
+                  range.endRowIndex >= candidate.scheduleStartRow &&
+                  range.endRowIndex <= candidate.scheduleEndRow,
+              ) &&
+              Array.isArray(update.rows) &&
+              update.rows.length === 1 &&
+              Array.isArray(update.rows[0]?.values) &&
+              update.rows[0].values.length === 1 &&
+              Object.keys(scheduleCell || {}).length === 1 &&
+              Object.keys(scheduleCell?.userEnteredValue || {}).length === 1 &&
+              typeof scheduleCell?.userEnteredValue?.stringValue === "string" &&
+              scheduleCell.userEnteredValue.stringValue.length > 0 &&
+              scheduleCell.userEnteredValue.stringValue.length <= 160;
           if (
-            !store ||
             Object.keys(update).some(
               (key) => !["range", "rows", "fields"].includes(key),
             ) ||
             update.fields !== "userEnteredValue" ||
-            range.startRowIndex !== mapping.master.startRow - 1 ||
-            range.endRowIndex > mapping.master.endRow ||
-            range.endRowIndex <= range.startRowIndex ||
-            !Array.isArray(update.rows) ||
-            update.rows.length !== range.endRowIndex - range.startRowIndex ||
-            update.rows.some(
-              (row: any) =>
-                !Array.isArray(row.values) || row.values.length !== 2,
-            )
+            (!masterWrite && !scheduleNameWrite)
           )
             throw new Problem(
               400,
-              "Write outside California employee master rejected.",
+              "Write outside California employee master or mapped name cells rejected.",
             );
         } else if (value.setDataValidation) {
           const range = value.setDataValidation.range;

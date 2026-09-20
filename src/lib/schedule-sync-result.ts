@@ -17,17 +17,29 @@ export type ScheduleSyncResponse = {
 
 export function scheduleSyncNotice(response: ScheduleSyncResponse) {
   const results = response.result ? [response.result] : response.results || [],
-    texas = results.find((result) => result.state === "texas"),
-    reconciliation = texas?.reconciliation;
-  if (!reconciliation)
+    reconciliations = results.flatMap((result) =>
+      result.reconciliation
+        ? [{ state: result.state, ...result.reconciliation }]
+        : [],
+    );
+  if (!reconciliations.length)
     return results.length === 1
       ? `${results[0].state === "california" ? "California" : "Texas"} schedule dropdowns synced successfully.`
       : "Schedule dropdowns synced successfully.";
 
-  const matched = reconciliation.reconciled.length,
-    misses = reconciliation.unmatched;
+  const matched = reconciliations.reduce(
+      (total, result) => total + result.reconciled.length,
+      0,
+    ),
+    misses = reconciliations.flatMap((result) => result.unmatched),
+    label =
+      results.length === 1
+        ? results[0].state === "california"
+          ? "California schedule"
+          : "Texas schedule"
+        : "Schedule";
   if (!misses.length)
-    return `Texas schedule dropdowns synced successfully. Reconciled ${matched} existing name${matched === 1 ? "" : "s"}; every populated name cell is matched.`;
+    return `${label} dropdowns synced successfully. Reconciled ${matched} existing name${matched === 1 ? "" : "s"}; every populated name cell is matched.`;
   const details = misses
     .map((miss) => {
       const reason =
@@ -37,5 +49,5 @@ export function scheduleSyncNotice(response: ScheduleSyncResponse) {
       return `${miss.cell} (${miss.storeId}, “${miss.value}” — ${reason})`;
     })
     .join("; ");
-  return `Texas schedule dropdowns synced. Reconciled ${matched} existing name${matched === 1 ? "" : "s"}. ${misses.length} cell${misses.length === 1 ? "" : "s"} still need review: ${details}.`;
+  return `${label} dropdowns synced. Reconciled ${matched} existing name${matched === 1 ? "" : "s"}. ${misses.length} cell${misses.length === 1 ? "" : "s"} still need review: ${details}.`;
 }

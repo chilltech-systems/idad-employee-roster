@@ -156,7 +156,12 @@ async function syncCalifornia(
   );
   if (plan.requests.length) await client.write(plan.requests);
   const after = await stableCaliforniaDraft(client, target.spreadsheetId);
-  assertCaliforniaDraftReadback(after, plan.roster, target.spreadsheetId);
+  assertCaliforniaDraftReadback(
+    after,
+    plan.roster,
+    target.spreadsheetId,
+    plan.reconciliation,
+  );
   await recordResult("california", target, "ready");
   return {
     state: "california" as const,
@@ -164,6 +169,7 @@ async function syncCalifornia(
     prepared: preparation.prepared,
     active: plan.active,
     aliases: plan.roster.length,
+    reconciliation: plan.reconciliation,
     fingerprint: californiaDraftFingerprint(after, target.spreadsheetId),
   };
 }

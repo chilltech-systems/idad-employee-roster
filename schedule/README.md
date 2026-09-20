@@ -31,9 +31,16 @@ The old connected Preview deployment has been retired. Local automation and draf
 
 Only the two explicit selected targets are Google write destinations. The POS roster reader and ScheduleDB catalog principal are read-only. Database writes stay in the four production portal collections; DirectoryDB, unselected schedules, live reporting workflows and bound scripts remain unchanged.
 
-`Directory Roster` A:F holds store, directory ID, POS ID/source, selection label and POS name. Historical labels are retained, including inactive selections. New labels cannot silently claim existing unbound text. Names are disambiguated by full/preferred names, never ID suffixes. Managers need to choose distinct preferred names if both names collide.
+`Directory Roster` A:F holds store, directory ID, POS ID/source, selection label and POS name. Historical labels are retained, including inactive selections. Existing text can move to a new label only through the bounded unique reconciliation described below. Names are disambiguated by full/preferred names, never ID suffixes. Managers need to choose distinct preferred names if both names collide.
 
 `Directory Bindings` D:E resolves selected exact labels against the hidden roster through row 5000. During sync, an existing Texas column-N name is normalized to the exact dropdown label only when its current label, full/POS name, first name or explicit alias identifies one active directory employee within that store. Unknown and ambiguous strings remain unchanged and are returned with their cell addresses in the sync result. Hourly Calculations continues reading the existing names and times. Sync changes helper values/formulas, N-cell validation and these uniquely reconciled names; it never writes time cells, formats or layouts.
+
+California applies the same store-scoped identity rule to the 105 reviewed
+column-R name cells. A unique label, full/POS name, first name or explicit alias
+is rewritten to the exact `Employee Names Master` dropdown label. Unknown and
+ambiguous strings stay unchanged and are returned with their cell addresses in
+the success notice. California sync writes only the reviewed master ranges,
+column-R validation and these uniquely reconciled names.
 
 ## Export
 

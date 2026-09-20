@@ -45,3 +45,36 @@ test("sync notice reports every unmatched Texas cell and reconciliation count", 
     /N144 \(TX-144, “Ricardo” — ambiguous: Ricardo C\. or Ricardo S\.\)/,
   );
 });
+
+test("sync notice reports California reconciliation and review cells", () => {
+  const notice = scheduleSyncNotice({
+    ok: true,
+    result: {
+      state: "california",
+      reconciliation: {
+        reconciled: [
+          {
+            cell: "R21",
+            row: 21,
+            storeId: "JJ-025",
+            from: "Rebekah",
+            to: "Rebekah Knight",
+          },
+        ],
+        unmatched: [
+          {
+            cell: "R72",
+            row: 72,
+            storeId: "JJ-125",
+            value: "Jocelyn",
+            reason: "no-match",
+            candidates: [],
+          },
+        ],
+      },
+    },
+  });
+  assert.match(notice, /^California schedule dropdowns synced\./);
+  assert.match(notice, /Reconciled 1 existing name/);
+  assert.match(notice, /R72 \(JJ-125, “Jocelyn” — no directory match\)/);
+});

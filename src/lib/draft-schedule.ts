@@ -433,7 +433,7 @@ export function planDraftSync(
   return { requests, roster: rows, active: labels.size, reconciliation };
 }
 
-function scheduleNameKey(value: string) {
+export function scheduleNameKey(value: string) {
   return value
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -441,7 +441,7 @@ function scheduleNameKey(value: string) {
     .replace(/[^a-z0-9]+/g, "");
 }
 
-function legacyScheduleName(value: string) {
+export function legacyScheduleName(value: string) {
   return value
     .replace(/\s*\([^)]*\)\s*$/, "")
     .replace(/\s*#\s*\d+\s*$/, "")
