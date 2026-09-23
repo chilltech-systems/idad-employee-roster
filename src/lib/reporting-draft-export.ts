@@ -75,6 +75,86 @@ export type ReportingDraftExportResult =
       export: null;
     };
 
+/**
+ * A reporting/snapshot read is intentionally different from the accepted
+ * complete-store export. It exposes valid shifts and the exact exceptions so
+ * a Sunday publisher can omit only the affected employee, while report
+ * generators may still enforce an all-or-nothing store policy.
+ */
+export function finalizeTexasReportingExports(
+  grid: DraftGrid,
+  state: State,
+  request: z.infer<typeof reportingDraftExportRequestSchema>,
+  workbookId = DRAFT_ID,
+) {
+  const parsed = reportingDraftExportRequestSchema.parse(request);
+  const weeks = parsed.storeIds.map(
+    (storeId) => extractDraft(grid, storeId, 1, [], [], workbookId).input.weekStart,
+  );
+  if (weeks.some((weekStart) => weekStart !== parsed.weekStart))
+    throw new Problem(
+      409,
+      `Schedule P1 does not match requested week ${parsed.weekStart}.`,
+    );
+  return {
+    version: 1 as const,
+    state: "texas" as const,
+    weekStart: parsed.weekStart,
+    workbookId,
+    generatedAt: new Date().toISOString(),
+    results: parsed.storeIds.map((storeId) => {
+      const key = draftExportKey(storeId, parsed.weekStart, false, workbookId);
+      const previous = state.sync.draftExports?.[key];
+      const exportResult = validateDraftExport(
+        grid,
+        state.employees,
+        storeId,
+        previous,
+        [],
+        legacyOvernightRules(previous),
+        workbookId,
+      );
+      const issues = exportResult.snapshot.exceptions.map(
+        (issue) => `Row ${issue.row}: ${issue.reason}`,
+      );
+      const invalidIdentity = exportResult.snapshot.shifts.filter(
+        (shift) => shift.posIdentityPending || !shift.posEmployeeId,
+      );
+      const pending = invalidIdentity.length;
+      if (pending)
+        issues.push(
+          `${pending} shift${pending === 1 ? " has" : "s have"} POS verification pending.`,
+        );
+      const validShifts = exportResult.snapshot.shifts.filter(
+        (shift) => !shift.posIdentityPending && Boolean(shift.posEmployeeId),
+      );
+      const finalized = {
+        ...exportResult,
+        snapshot: {
+          ...exportResult.snapshot,
+          shifts: validShifts,
+          valid: validShifts.length,
+          exceptionCount: exportResult.snapshot.exceptionCount + pending,
+          ready: exportResult.snapshot.ready && pending === 0,
+        },
+      };
+      if (!finalized.snapshot.valid)
+        issues.push("No validated shifts were found.");
+      return {
+        storeId,
+        status:
+          finalized.snapshot.ready &&
+          finalized.scope === "complete-store" &&
+          !pending
+            ? ("ready" as const)
+            : ("blocked" as const),
+        issues,
+        export: finalized,
+      };
+    }),
+  };
+}
+
 export function validateReportingDraftExports(
   grid: DraftGrid,
   state: State,

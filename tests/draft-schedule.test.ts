@@ -16,6 +16,7 @@ import {
 } from "../src/lib/google-draft";
 import {
   requireReportingExportToken,
+  finalizeTexasReportingExports,
   validateReportingDraftExports,
 } from "../src/lib/reporting-draft-export";
 import { createHash } from "node:crypto";
@@ -470,6 +471,29 @@ test("reporting validation records only complete POS-backed exports and is idemp
   assert.equal(blocked.results[0].status, "blocked");
   assert.match(blocked.results[0].issues.join(" "), /POS verification pending/);
   assert.deepEqual(state.sync.draftExports, accepted);
+});
+
+test("Texas reporting finalization retains valid shifts beside employee exceptions", () => {
+  const g = grid(), state = seed();
+  state.employees = [employee("one"), employee("two")];
+  state.employees[1].posIdentityPending = true;
+  state.employees[1].posEmployeeId = "pending:two";
+  set(g, ROSTER_ID, 3, 1, "TX-149");
+  set(g, ROSTER_ID, 3, 2, "two");
+  set(g, ROSTER_ID, 3, 3, "");
+  set(g, ROSTER_ID, 3, 4, "Qu");
+  set(g, ROSTER_ID, 3, 5, "Jamie D.");
+  set(g, ROSTER_ID, 3, 6, "Jamie Carson");
+  set(g, MAIN_ID, 23, 14, "Jamie D.");
+  set(g, MAIN_ID, 23, 16, 8 / 24);
+  set(g, MAIN_ID, 23, 17, 12 / 24);
+  const result = finalizeTexasReportingExports(g, state, {
+    weekStart: "2026-09-06",
+    storeIds: ["TX-149"],
+  });
+  assert.equal(result.results[0].status, "blocked");
+  assert.equal(result.results[0].export.snapshot.shifts.length, 1);
+  assert.match(result.results[0].issues.join(" "), /POS verification pending/);
 });
 
 test("reporting validation reuses reviewed overnight rules only for the accepted store week", () => {

@@ -422,6 +422,48 @@ endpoint(
   },
 );
 endpoint(
+  "/reporting/draft-exports/finalize",
+  "post",
+  "Report-time Texas schedule reread; exposes valid shifts and per-store exceptions without recording a dispatch",
+  {
+    type: "object",
+    required: ["weekStart", "storeIds"],
+    additionalProperties: false,
+    properties: {
+      weekStart: { type: "string", format: "date" },
+      storeIds: {
+        type: "array",
+        minItems: 1,
+        maxItems: 32,
+        uniqueItems: true,
+        items: { type: "string", minLength: 1, maxLength: 40 },
+      },
+    },
+  },
+  { reportingToken: true, response: { type: "object" } },
+);
+endpoint(
+  "/reporting/california-exports/finalize",
+  "post",
+  "Report-time California schedule reread; returns independent per-store final export evidence",
+  {
+    type: "object",
+    required: ["weekStart", "storeIds"],
+    additionalProperties: false,
+    properties: {
+      weekStart: { type: "string", format: "date" },
+      storeIds: {
+        type: "array",
+        minItems: 1,
+        maxItems: 32,
+        uniqueItems: true,
+        items: { type: "string", minLength: 1, maxLength: 40 },
+      },
+    },
+  },
+  { reportingToken: true, response: { type: "object" } },
+);
+endpoint(
   "/schedules/california/legacy-export",
   "post",
   "Prepare and record the current-week California schedule dispatch for n8n",
@@ -434,6 +476,13 @@ endpoint(
         "Action-specific preparation, dispatch, completion, or cutoff result.",
     },
   },
+);
+endpoint(
+  "/schedules/california/legacy-export",
+  "get",
+  "Read the California portal dispatch receipt only; does not call the receiver or write ScheduleDB",
+  undefined,
+  { californiaExportToken: true, response: { type: "object" } },
 );
 endpoint(
   "/admin/people",

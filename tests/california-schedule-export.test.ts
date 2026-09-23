@@ -8,6 +8,7 @@ import {
   completeCaliforniaDispatch,
   currentChicagoWeek,
   extractCaliforniaLegacyExport,
+  finalizeCaliforniaReportingExports,
   prepareCaliforniaDispatch,
   recordCaliforniaCutoff,
   requireCaliforniaScheduleExportToken,
@@ -238,6 +239,40 @@ test("California extraction returns the legacy webhook contract for all six stor
     "week_end",
     "schedule",
   ]);
+});
+
+test("California report finalization blocks only the affected store", () => {
+  const { employees, grid, target } = fixture();
+  set(
+    grid,
+    mapping.schedule.sheetId,
+    mapping.stores[0].scheduleStartRow,
+    mapping.schedule.days[0].endColumn,
+    "not-a-time",
+  );
+  const result = finalizeCaliforniaReportingExports(grid, employees, target, [
+    mapping.stores[0].storeId,
+    mapping.stores[1].storeId,
+  ]);
+  assert.equal(result.results[0].status, "blocked");
+  assert.equal(result.results[1].status, "ready");
+  assert.equal(result.results[1].export?.shiftCount, 1);
+});
+
+test("California reporting extraction isolates one requested store", () => {
+  const { employees, grid, target } = fixture(),
+    result = extractCaliforniaLegacyExport(grid, employees, target, ["JJ-025"]);
+  assert.equal(result.ready, true, JSON.stringify(result.issues));
+  assert.equal(result.shiftCount, 1);
+  assert.deepEqual(result.countsByStore, { "JJ-025": 1 });
+  assert.deepEqual(
+    result.payload?.schedule.map((shift) => shift["Store ID"]),
+    ["jj-25"],
+  );
+  assert.throws(
+    () => extractCaliforniaLegacyExport(grid, employees, target, ["JJ-999"]),
+    /Unknown California Jamba store scope/,
+  );
 });
 
 test("California extraction carries one confirmed Toast ID to a linked multi-store assignment", () => {

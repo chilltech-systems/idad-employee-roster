@@ -59,9 +59,22 @@ If the larger system must own the UI and runtime, move these layers together:
 
 Do not copy only the UI components; the server-side permission, revision, transaction, and audit rules are the safety boundary.
 
-### 6. Weekly Texas labor-report consumer
+### 6. Weekly labor-report consumers
 
-The local IDAD Data Gateway calls `POST /api/v1/reporting/draft-exports/validate` with the requested Sunday and active Texas store IDs. Configure only the SHA-256 digest of the dedicated token as `PORTAL_REPORT_EXPORT_TOKEN_SHA256`; the caller retains the raw `IDAD_DIRECTORY_REPORT_TOKEN`. The endpoint does not accept exclusions, does not use an administrator session, and cannot manage employees. A store is returned as blocked when any populated shift has an exception, no shift exists, or POS verification remains pending. Ready responses include the exact accepted `DraftExport` fingerprint and revision for downstream reconciliation.
+The local IDAD Data Gateway calls `POST /api/v1/reporting/draft-exports/finalize`
+for Texas and `POST /api/v1/reporting/california-exports/finalize` for California
+immediately before it reads labor records. Both endpoints reread the approved
+workbook and return per-store identity-backed shifts, fingerprint/revision,
+target metadata, scheduled counts/hours, and exact employee-level exceptions.
+They are report-only: they do not write ScheduleDB, alter a Sunday receipt, or
+manage employees. Configure only the SHA-256 digest of the dedicated token as
+`PORTAL_REPORT_EXPORT_TOKEN_SHA256`; the caller retains the raw
+`IDAD_DIRECTORY_REPORT_TOKEN`.
+
+A report-time exception blocks that store's report, while other requested
+stores may proceed. The manifest must retain the blocked store's exact issues
+and must not label it complete. Matching remains on store, POS source, POS
+employee ID, and business date; names are display-only.
 
 ### 7. Automated California schedule consumer
 
@@ -73,6 +86,22 @@ must call `begin` before the receiver and `complete` afterward. A successful or
 ambiguous receipt is terminal for the week; an identical successful week is
 never returned for another send. The endpoint never calls the downstream
 webhook itself.
+
+### 8. Texas Sunday ScheduleDB publisher
+
+`n8n/weekly-schedule-publishing/weekly-schedule-publishing.inactive.workflow.json`
+is an importable, inactive canvas. Its Texas group runs only within the Sunday
+5:15–8:00 a.m. Central window, obtains the Texas report-time schedule read,
+omits only invalid employees' shifts, serializes the established receiver
+envelope, and records a terminal static receipt state after a success or an
+ambiguous response. An empty store is suppressed without suppressing other
+stores. Activate it only after a no-send shadow comparison and an approved
+production dispatch with receiver and ScheduleDB read-back.
+
+The California group is deliberately verification-only: it reads the protected
+portal receipt and the portal's read-only `ScheduleDB.employee_shifts` count
+aggregation, then compares all receipt stores without calling the receiver.
+The active California publisher remains the sole writer.
 
 ## Data mapping checklist
 

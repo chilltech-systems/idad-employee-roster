@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { DateTime } from "luxon";
 import { assertLocalDemo, mode, stores } from "@/lib/config";
 import { repository } from "@/lib/repository";
 import { canAccess, Problem, requireAdmin, requireStore } from "@/lib/model";
@@ -32,7 +33,11 @@ import { syncDraftNow } from "@/lib/draft-operations";
 import { retainPreviousRoster } from "@/lib/current-day-roster";
 import { portalOrigin } from "@/lib/origin";
 import { hasGoogleCredential } from "@/lib/google-credential";
-import { CALIFORNIA_DRAFT_ID } from "@/lib/google-california-draft";
+import {
+  CALIFORNIA_DRAFT_ID,
+  californiaDraftClient,
+} from "@/lib/google-california-draft";
+import { stableCaliforniaDraft } from "@/lib/california-draft-schedule";
 import {
   listPeople,
   savePerson,
@@ -43,6 +48,7 @@ import {
 import {
   reportingDraftExportRequestSchema,
   requireReportingExportToken,
+  finalizeTexasReportingExports,
   validateReportingDraftExports,
 } from "@/lib/reporting-draft-export";
 import {
@@ -57,10 +63,16 @@ import {
   californiaScheduleExportRequestSchema,
   completeCaliforniaDispatch,
   currentChicagoWeek,
+  finalizeCaliforniaReportingExports,
   prepareCaliforniaDispatch,
   recordCaliforniaCutoff,
+  resolveCurrentCaliforniaSchedule,
   requireCaliforniaScheduleExportToken,
 } from "@/lib/california-schedule-export";
+import {
+  readPublishedScheduleCounts,
+  readScheduleCatalog,
+} from "@/lib/schedule-catalog";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -76,11 +88,20 @@ async function handler(
     const configuredOrigin = portalOrigin();
     const reportingExport =
       path === "reporting/draft-exports/validate" && method === "POST";
+    const reportingFinalize =
+      path === "reporting/draft-exports/finalize" && method === "POST";
+    const californiaReportingFinalize =
+      path === "reporting/california-exports/finalize" && method === "POST";
     const californiaExport =
       path === "schedules/california/legacy-export" && method === "POST";
+    const californiaReceipt =
+      path === "schedules/california/legacy-export" && method === "GET";
     if (
       !reportingExport &&
+      !reportingFinalize &&
+      !californiaReportingFinalize &&
       !californiaExport &&
+      !californiaReceipt &&
       !["GET", "HEAD"].includes(method) &&
       req.headers.get("origin") !== configuredOrigin
     )
@@ -114,6 +135,31 @@ async function handler(
       throw new Problem(400, "A JSON object is required.");
     const token = req.cookies.get(cookieName)?.value;
     const repo = repository();
+    if (californiaReceipt) {
+      requireCaliforniaScheduleExportToken(req.headers.get("authorization"));
+      const weekStart = z
+        .iso.date()
+        .parse(
+          req.nextUrl.searchParams.get("weekStart") ||
+            currentChicagoWeek().weekStart,
+        );
+      const dispatch = await repo.transact((state) =>
+        structuredClone(
+          state.sync.californiaScheduleDispatches?.[
+            `california:jamba:${weekStart}`
+          ] || null,
+        ),
+      );
+      const scheduleDb = await readPublishedScheduleCounts(
+        "California",
+        "Jamba",
+        weekStart,
+      );
+      return NextResponse.json(
+        { version: 1, state: "california", weekStart, dispatch, scheduleDb },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     if (californiaExport) {
       requireCaliforniaScheduleExportToken(req.headers.get("authorization"));
       const payload = californiaScheduleExportRequestSchema.parse(body),
@@ -170,7 +216,7 @@ async function handler(
         headers: { "Cache-Control": "no-store" },
       });
     }
-    if (reportingExport) {
+    if (reportingExport || reportingFinalize) {
       requireReportingExportToken(req.headers.get("authorization"));
       const payload = reportingDraftExportRequestSchema.parse(body);
       const target = await repo.transact((state) =>
@@ -181,16 +227,79 @@ async function handler(
           target.spreadsheetId,
         );
       const result = await repo.transact((state) =>
-        validateReportingDraftExports(
-          grid,
-          state,
-          payload,
-          target.spreadsheetId,
-        ),
+        reportingFinalize
+          ? finalizeTexasReportingExports(
+              grid,
+              state,
+              payload,
+              target.spreadsheetId,
+            )
+          : validateReportingDraftExports(
+              grid,
+              state,
+              payload,
+              target.spreadsheetId,
+            ),
       );
-      return NextResponse.json(result, {
-        headers: { "Cache-Control": "no-store" },
-      });
+      return NextResponse.json(
+        reportingFinalize
+          ? {
+              ...result,
+              target: {
+                scheduleId: target.scheduleId,
+                workbookId: target.spreadsheetId,
+                sheetName: target.sheetName,
+                sheetUrl: target.sheetUrl,
+                weekStart: target.weekStart,
+                weekEnd: target.weekEnd,
+              },
+            }
+          : result,
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if (californiaReportingFinalize) {
+      requireReportingExportToken(req.headers.get("authorization"));
+      const payload = z
+        .object({
+          weekStart: z.iso.date(),
+          storeIds: z.array(z.string().trim().min(1).max(40)).min(1).max(32),
+        })
+        .strict()
+        .refine(
+          (value) => new Set(value.storeIds).size === value.storeIds.length,
+          {
+            message: "Store IDs must be unique.",
+            path: ["storeIds"],
+          },
+        )
+        .parse(body);
+      const weekEnd = DateTime.fromISO(payload.weekStart, {
+        zone: "America/Chicago",
+      })
+        .plus({ days: 6 })
+        .toISODate()!;
+      const target = resolveCurrentCaliforniaSchedule(
+        await readScheduleCatalog("california"),
+        payload.weekStart,
+        weekEnd,
+      );
+      const [employees, grid] = await Promise.all([
+        repo.transact((state) => structuredClone(state.employees)),
+        stableCaliforniaDraft(
+          await californiaDraftClient(fetch, target.sheetId),
+          target.sheetId,
+        ),
+      ]);
+      return NextResponse.json(
+        finalizeCaliforniaReportingExports(
+          grid,
+          employees,
+          target,
+          payload.storeIds,
+        ),
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
     if (path === "login" && method === "POST") {
       const result = await repo.transact((s) => login(s, body));

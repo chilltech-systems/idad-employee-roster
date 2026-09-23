@@ -112,3 +112,46 @@ export async function readTargetCatalog() {
   ]);
   return { texas, california };
 }
+
+/**
+ * Read-only receipt evidence for a published schedule. The receiver owns this
+ * collection; this function deliberately aggregates only the legacy schedule
+ * envelope and never creates, updates, or deletes a ScheduleDB record.
+ */
+export async function readPublishedScheduleCounts(
+  state: "California" | "Texas",
+  brand: string,
+  weekStart: string,
+) {
+  const mongo = await client();
+  const documents = await mongo
+    .db("ScheduleDB")
+    .collection<Document>("employee_shifts")
+    .find(
+      {
+        week_start: weekStart,
+        state: { $in: [state, state.toLowerCase(), state.slice(0, 2).toUpperCase()] },
+        brand: { $in: [brand, brand.toLowerCase()] },
+      },
+      { projection: { _id: 0, schedule: 1 } },
+    )
+    .toArray();
+  const countsByStore: Record<string, number> = {};
+  for (const document of documents) {
+    if (!Array.isArray(document.schedule)) continue;
+    for (const raw of document.schedule) {
+      if (!raw || typeof raw !== "object") continue;
+      const shift = raw as Record<string, unknown>;
+      const storeId = String(
+        shift["Store ID"] ?? shift.store_id ?? shift.location_id ?? "",
+      ).trim();
+      if (!storeId) continue;
+      countsByStore[storeId] = (countsByStore[storeId] || 0) + 1;
+    }
+  }
+  return {
+    sourceDocuments: documents.length,
+    shiftCount: Object.values(countsByStore).reduce((sum, count) => sum + count, 0),
+    countsByStore,
+  };
+}

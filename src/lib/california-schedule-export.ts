@@ -108,6 +108,13 @@ export type CaliforniaExportCandidate = {
   payload?: LegacyCaliforniaSchedulePayload;
 };
 
+export type CaliforniaReportingExportResult = {
+  storeId: string;
+  status: "ready" | "blocked";
+  issues: CaliforniaExportIssue[];
+  export: CaliforniaExportCandidate | null;
+};
+
 export function currentChicagoWeek(now = new Date()) {
   const local = DateTime.fromJSDate(now, { zone }).startOf("day");
   const week = local.minus({ days: local.weekday % 7 });
@@ -200,12 +207,22 @@ export function extractCaliforniaLegacyExport(
   grid: DraftGrid,
   employees: Employee[],
   target: ScheduleCatalogEntry,
+  requestedStoreIds?: string[],
 ): CaliforniaExportCandidate {
+  const requested = requestedStoreIds?.length
+      ? new Set(requestedStoreIds.map((value) => value.toUpperCase()))
+      : null,
+    activeStores = requested
+      ? mapping.stores.filter((store) => requested.has(store.storeId))
+      : mapping.stores;
+  if (requested && activeStores.length !== requested.size)
+    throw new Problem(400, "Unknown California Jamba store scope.");
   const master = californiaMasterFromGrid(grid, target.sheetId),
     issues: CaliforniaExportIssue[] = [],
     labels = new Map<string, string>(),
     directoryClaims = new Set<string>();
   for (const entry of master) {
+    if (requested && !requested.has(entry.storeId)) continue;
     const labelKey = `${entry.storeId}|${entry.label}`,
       directoryKey = `${entry.storeId}|${entry.directoryId}`;
     if (labels.has(labelKey))
@@ -236,7 +253,7 @@ export function extractCaliforniaLegacyExport(
   const cells: ShiftInput["cells"] = [];
   for (const [dayIndex, day] of mapping.schedule.days.entries()) {
     const businessDate = expectedWeek.plus({ days: dayIndex }).toISODate()!;
-    for (const store of mapping.stores)
+    for (const store of activeStores)
       for (
         let row = store.scheduleStartRow;
         row <= store.scheduleEndRow;
@@ -316,7 +333,7 @@ export function extractCaliforniaLegacyExport(
     issues.push({ reason: "No validated California shifts were found." });
 
   const countsByStore = Object.fromEntries(
-      mapping.stores.map((store) => [
+      activeStores.map((store) => [
         store.storeId,
         snapshot.shifts.filter((shift) => shift.storeId === store.storeId)
           .length,
@@ -324,7 +341,7 @@ export function extractCaliforniaLegacyExport(
     ),
     weekNum = legacyWeekNumber(target.weekStart),
     storeHeaders = new Map(
-      mapping.stores.map((store) => [store.storeId, store.sourceHeader]),
+      activeStores.map((store) => [store.storeId, store.sourceHeader]),
     ),
     employeeById = new Map(
       employees.map((employee) => [employee.id, employee]),
@@ -384,6 +401,41 @@ export function extractCaliforniaLegacyExport(
     shiftCount: schedule.length,
     issues: uniqueIssues,
     ...(uniqueIssues.length ? {} : { payload }),
+  };
+}
+
+/**
+ * Produces one report-time result per requested store. Unlike the Sunday
+ * publisher, this is deliberately not an all-stores gate: a report runner can
+ * continue other stores while retaining exact evidence for the blocked store.
+ * It does not create or alter a California dispatch record.
+ */
+export function finalizeCaliforniaReportingExports(
+  grid: DraftGrid,
+  employees: Employee[],
+  target: ScheduleCatalogEntry,
+  storeIds: string[],
+) {
+  const requested = [...new Set(storeIds.map((value) => value.toUpperCase()))];
+  if (!requested.length)
+    throw new Problem(400, "At least one California store is required.");
+  return {
+    version: 1 as const,
+    state: stateName,
+    brand,
+    weekStart: target.weekStart,
+    generatedAt: new Date().toISOString(),
+    results: requested.map((storeId): CaliforniaReportingExportResult => {
+      const candidate = extractCaliforniaLegacyExport(
+        grid,
+        employees,
+        target,
+        [storeId],
+      );
+      return candidate.ready && candidate.payload
+        ? { storeId, status: "ready", issues: [], export: candidate }
+        : { storeId, status: "blocked", issues: candidate.issues, export: null };
+    }),
   };
 }
 
