@@ -496,6 +496,19 @@ test("Texas reporting finalization retains valid shifts beside employee exceptio
   assert.match(result.results[0].issues.join(" "), /POS verification pending/);
 });
 
+test("Texas reporting finalization blocks a zero-shift store", () => {
+  const g = grid(), state = seed();
+  state.employees = [employee()];
+  set(g, MAIN_ID, 22, 16, "");
+  set(g, MAIN_ID, 22, 17, "");
+  const result = finalizeTexasReportingExports(g, state, {
+    weekStart: "2026-09-06",
+    storeIds: ["TX-149"],
+  });
+  assert.equal(result.results[0].status, "blocked");
+  assert.match(result.results[0].issues.join(" "), /No validated shifts/);
+});
+
 test("reporting validation reuses reviewed overnight rules only for the accepted store week", () => {
   const g = grid();
   const state = seed();

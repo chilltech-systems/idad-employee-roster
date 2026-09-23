@@ -145,7 +145,8 @@ export function finalizeTexasReportingExports(
         status:
           finalized.snapshot.ready &&
           finalized.scope === "complete-store" &&
-          !pending
+          !pending &&
+          validShifts.length > 0
             ? ("ready" as const)
             : ("blocked" as const),
         issues,
