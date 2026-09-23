@@ -113,6 +113,25 @@ export async function readTargetCatalog() {
   return { texas, california };
 }
 
+export function resolveCatalogScheduleWeek(
+  catalog: ScheduleCatalogEntry[],
+  state: ScheduleTargetState,
+  weekStart: string,
+  weekEnd: string,
+) {
+  const matches = catalog.filter(
+    (entry) => entry.weekStart === weekStart && entry.weekEnd === weekEnd,
+  );
+  if (matches.length !== 1)
+    throw new Problem(
+      409,
+      matches.length
+        ? `Multiple ${state} schedules match ${weekStart}.`
+        : `${state} schedule ${weekStart} is not available yet.`,
+    );
+  return matches[0];
+}
+
 /**
  * Read-only receipt evidence for a published schedule. The receiver owns this
  * collection; this function deliberately aggregates only the legacy schedule

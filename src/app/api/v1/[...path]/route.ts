@@ -71,6 +71,7 @@ import {
 } from "@/lib/california-schedule-export";
 import {
   readPublishedScheduleCounts,
+  resolveCatalogScheduleWeek,
   readScheduleCatalog,
 } from "@/lib/schedule-catalog";
 export const runtime = "nodejs";
@@ -92,6 +93,8 @@ async function handler(
       path === "reporting/draft-exports/finalize" && method === "POST";
     const californiaReportingFinalize =
       path === "reporting/california-exports/finalize" && method === "POST";
+    const texasSundaySnapshot =
+      path === "schedules/texas/sunday-snapshot" && method === "POST";
     const californiaExport =
       path === "schedules/california/legacy-export" && method === "POST";
     const californiaReceipt =
@@ -100,6 +103,7 @@ async function handler(
       !reportingExport &&
       !reportingFinalize &&
       !californiaReportingFinalize &&
+      !texasSundaySnapshot &&
       !californiaExport &&
       !californiaReceipt &&
       !["GET", "HEAD"].includes(method) &&
@@ -215,6 +219,42 @@ async function handler(
       return NextResponse.json(result, {
         headers: { "Cache-Control": "no-store" },
       });
+    }
+    if (texasSundaySnapshot) {
+      requireReportingExportToken(req.headers.get("authorization"));
+      const payload = reportingDraftExportRequestSchema.parse(body);
+      const weekEnd = DateTime.fromISO(payload.weekStart, {
+        zone: "America/Chicago",
+      })
+        .plus({ days: 6 })
+        .toISODate()!;
+      const target = resolveCatalogScheduleWeek(
+        await readScheduleCatalog("texas"),
+        "texas",
+        payload.weekStart,
+        weekEnd,
+      );
+      const grid = await stableDraft(
+        await draftClient(fetch, target.sheetId),
+        target.sheetId,
+      );
+      const result = await repo.transact((state) =>
+        finalizeTexasReportingExports(grid, state, payload, target.sheetId),
+      );
+      return NextResponse.json(
+        {
+          ...result,
+          target: {
+            scheduleId: target.scheduleId,
+            workbookId: target.sheetId,
+            sheetName: target.sheetName,
+            sheetUrl: target.sheetUrl,
+            weekStart: target.weekStart,
+            weekEnd: target.weekEnd,
+          },
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
     if (reportingExport || reportingFinalize) {
       requireReportingExportToken(req.headers.get("authorization"));
