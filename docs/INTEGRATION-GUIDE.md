@@ -65,7 +65,9 @@ The local IDAD Data Gateway calls `POST /api/v1/reporting/draft-exports/finalize
 for Texas and `POST /api/v1/reporting/california-exports/finalize` for California
 immediately before it reads labor records. Both endpoints reread the approved
 workbook and return per-store identity-backed shifts, fingerprint/revision,
-target metadata, scheduled counts/hours, and exact employee-level exceptions.
+target metadata, scheduled counts/hours, exact employee-level exceptions, and
+the accepted directory source, observation time, acceptance time, row count,
+and store count used for identity validation.
 They are report-only: they do not write ScheduleDB, alter a Sunday receipt, or
 manage employees. Configure only the SHA-256 digest of the dedicated token as
 `PORTAL_REPORT_EXPORT_TOKEN_SHA256`; the caller retains the raw

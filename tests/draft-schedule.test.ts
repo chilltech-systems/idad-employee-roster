@@ -17,6 +17,7 @@ import {
 import {
   requireReportingExportToken,
   finalizeTexasReportingExports,
+  reportingDirectorySource,
   validateReportingDraftExports,
 } from "../src/lib/reporting-draft-export";
 import { createHash } from "node:crypto";
@@ -473,8 +474,40 @@ test("reporting validation records only complete POS-backed exports and is idemp
   assert.deepEqual(state.sync.draftExports, accepted);
 });
 
+test("reporting source metadata requires and describes the accepted roster snapshot", () => {
+  const state = seed();
+  assert.throws(
+    () => reportingDirectorySource(state),
+    /accepted employee-directory source snapshot/,
+  );
+  state.sync.snapshot = {
+    source: "fixture+current-day:09062026",
+    observedAt: "2026-09-06T15:00:00.000Z",
+    complete: true,
+    stores: ["TX-149"],
+    rowCount: 1,
+    rows: [
+      {
+        storeId: "TX-149",
+        posSource: "Qu",
+        posEmployeeId: "001",
+        posName: "Jamie Cooper",
+      },
+    ],
+  };
+  state.sync.lastSuccess = "2026-09-06T15:01:00.000Z";
+  assert.deepEqual(reportingDirectorySource(state), {
+    source: "fixture+current-day:09062026",
+    observedAt: "2026-09-06T15:00:00.000Z",
+    acceptedAt: "2026-09-06T15:01:00.000Z",
+    rowCount: 1,
+    storeCount: 1,
+  });
+});
+
 test("Texas reporting finalization retains valid shifts beside employee exceptions", () => {
-  const g = grid(), state = seed();
+  const g = grid(),
+    state = seed();
   state.employees = [employee("one"), employee("two")];
   state.employees[1].posIdentityPending = true;
   state.employees[1].posEmployeeId = "pending:two";
@@ -497,7 +530,8 @@ test("Texas reporting finalization retains valid shifts beside employee exceptio
 });
 
 test("Texas reporting finalization blocks a zero-shift store", () => {
-  const g = grid(), state = seed();
+  const g = grid(),
+    state = seed();
   state.employees = [employee()];
   set(g, MAIN_ID, 22, 16, "");
   set(g, MAIN_ID, 22, 17, "");

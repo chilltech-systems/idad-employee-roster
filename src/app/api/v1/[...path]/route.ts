@@ -48,6 +48,7 @@ import {
 import {
   reportingDraftExportRequestSchema,
   requireReportingExportToken,
+  reportingDirectorySource,
   finalizeTexasReportingExports,
   validateReportingDraftExports,
 } from "@/lib/reporting-draft-export";
@@ -141,8 +142,8 @@ async function handler(
     const repo = repository();
     if (californiaReceipt) {
       requireCaliforniaScheduleExportToken(req.headers.get("authorization"));
-      const weekStart = z
-        .iso.date()
+      const weekStart = z.iso
+        .date()
         .parse(
           req.nextUrl.searchParams.get("weekStart") ||
             currentChicagoWeek().weekStart,
@@ -238,9 +239,10 @@ async function handler(
         await draftClient(fetch, target.sheetId),
         target.sheetId,
       );
-      const result = await repo.transact((state) =>
-        finalizeTexasReportingExports(grid, state, payload, target.sheetId),
-      );
+      const result = await repo.transact((state) => ({
+        ...finalizeTexasReportingExports(grid, state, payload, target.sheetId),
+        directory: reportingDirectorySource(state),
+      }));
       return NextResponse.json(
         {
           ...result,
@@ -259,9 +261,11 @@ async function handler(
     if (reportingExport || reportingFinalize) {
       requireReportingExportToken(req.headers.get("authorization"));
       const payload = reportingDraftExportRequestSchema.parse(body);
-      const target = await repo.transact((state) =>
-          structuredClone(activeScheduleTarget(state, "texas")),
-        ),
+      const context = await repo.transact((state) => ({
+          target: structuredClone(activeScheduleTarget(state, "texas")),
+          directory: reportingDirectorySource(state),
+        })),
+        target = context.target,
         grid = await stableDraft(
           await draftClient(fetch, target.spreadsheetId),
           target.spreadsheetId,
@@ -285,6 +289,7 @@ async function handler(
         reportingFinalize
           ? {
               ...result,
+              directory: context.directory,
               target: {
                 scheduleId: target.scheduleId,
                 workbookId: target.spreadsheetId,
@@ -294,7 +299,7 @@ async function handler(
                 weekEnd: target.weekEnd,
               },
             }
-          : result,
+          : { ...result, directory: context.directory },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -324,20 +329,26 @@ async function handler(
         payload.weekStart,
         weekEnd,
       );
-      const [employees, grid] = await Promise.all([
-        repo.transact((state) => structuredClone(state.employees)),
+      const [directory, grid] = await Promise.all([
+        repo.transact((state) => ({
+          employees: structuredClone(state.employees),
+          source: reportingDirectorySource(state),
+        })),
         stableCaliforniaDraft(
           await californiaDraftClient(fetch, target.sheetId),
           target.sheetId,
         ),
       ]);
       return NextResponse.json(
-        finalizeCaliforniaReportingExports(
-          grid,
-          employees,
-          target,
-          payload.storeIds,
-        ),
+        {
+          ...finalizeCaliforniaReportingExports(
+            grid,
+            directory.employees,
+            target,
+            payload.storeIds,
+          ),
+          directory: directory.source,
+        },
         { headers: { "Cache-Control": "no-store" } },
       );
     }

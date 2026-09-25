@@ -257,6 +257,8 @@ test("California report finalization blocks only the affected store", () => {
   assert.equal(result.results[0].status, "blocked");
   assert.equal(result.results[1].status, "ready");
   assert.equal(result.results[1].export?.shiftCount, 1);
+  assert.equal(result.results[1].export?.revision, 1);
+  assert.equal(result.results[1].export?.scheduledMinutes, 240);
 });
 
 test("California reporting extraction isolates one requested store", () => {

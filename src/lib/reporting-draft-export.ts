@@ -14,6 +14,32 @@ import { Problem, type State } from "./model";
 
 const zone = "America/Chicago";
 
+export type ReportingDirectorySource = {
+  source: string;
+  observedAt: string;
+  acceptedAt: string;
+  rowCount: number;
+  storeCount: number;
+};
+
+export function reportingDirectorySource(
+  state: State,
+): ReportingDirectorySource {
+  const snapshot = state.sync.snapshot;
+  if (!snapshot || !state.sync.lastSuccess)
+    throw new Problem(
+      409,
+      "An accepted employee-directory source snapshot is required for reporting.",
+    );
+  return {
+    source: snapshot.source,
+    observedAt: snapshot.observedAt,
+    acceptedAt: state.sync.lastSuccess,
+    rowCount: snapshot.rowCount,
+    storeCount: snapshot.stores.length,
+  };
+}
+
 export const reportingDraftExportRequestSchema = z
   .object({
     weekStart: z.iso.date(),
@@ -89,7 +115,8 @@ export function finalizeTexasReportingExports(
 ) {
   const parsed = reportingDraftExportRequestSchema.parse(request);
   const weeks = parsed.storeIds.map(
-    (storeId) => extractDraft(grid, storeId, 1, [], [], workbookId).input.weekStart,
+    (storeId) =>
+      extractDraft(grid, storeId, 1, [], [], workbookId).input.weekStart,
   );
   if (weeks.some((weekStart) => weekStart !== parsed.weekStart))
     throw new Problem(

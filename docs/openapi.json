@@ -6882,6 +6882,7 @@
                     "workbookId",
                     "weekStart",
                     "generatedAt",
+                    "directory",
                     "results"
                   ],
                   "properties": {
@@ -6899,6 +6900,38 @@
                     "generatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "directory": {
+                      "type": "object",
+                      "required": [
+                        "source",
+                        "observedAt",
+                        "acceptedAt",
+                        "rowCount",
+                        "storeCount"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "source": {
+                          "type": "string"
+                        },
+                        "observedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "acceptedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "rowCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "storeCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
                     },
                     "results": {
                       "type": "array",
@@ -7194,7 +7227,74 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "version",
+                    "workbookId",
+                    "weekStart",
+                    "generatedAt",
+                    "directory",
+                    "target",
+                    "results"
+                  ],
+                  "properties": {
+                    "version": {
+                      "type": "integer",
+                      "const": 1
+                    },
+                    "workbookId": {
+                      "type": "string"
+                    },
+                    "weekStart": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "directory": {
+                      "type": "object",
+                      "required": [
+                        "source",
+                        "observedAt",
+                        "acceptedAt",
+                        "rowCount",
+                        "storeCount"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "source": {
+                          "type": "string"
+                        },
+                        "observedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "acceptedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "rowCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "storeCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    },
+                    "target": {
+                      "type": "object"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -7448,7 +7548,128 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "version",
+                    "state",
+                    "brand",
+                    "weekStart",
+                    "generatedAt",
+                    "directory",
+                    "results"
+                  ],
+                  "properties": {
+                    "version": {
+                      "type": "integer",
+                      "const": 1
+                    },
+                    "state": {
+                      "type": "string",
+                      "const": "california"
+                    },
+                    "brand": {
+                      "type": "string",
+                      "const": "jamba"
+                    },
+                    "weekStart": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "directory": {
+                      "type": "object",
+                      "required": [
+                        "source",
+                        "observedAt",
+                        "acceptedAt",
+                        "rowCount",
+                        "storeCount"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "source": {
+                          "type": "string"
+                        },
+                        "observedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "acceptedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "rowCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "storeCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "storeId",
+                          "status",
+                          "issues",
+                          "export"
+                        ],
+                        "properties": {
+                          "storeId": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ready",
+                              "blocked"
+                            ]
+                          },
+                          "issues": {
+                            "type": "array",
+                            "items": {
+                              "type": "object"
+                            }
+                          },
+                          "export": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "revision": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "fingerprint": {
+                                    "type": "string",
+                                    "pattern": "^[a-f0-9]{64}$"
+                                  },
+                                  "shiftCount": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "scheduledMinutes": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  }
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }

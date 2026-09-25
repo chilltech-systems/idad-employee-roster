@@ -101,9 +101,11 @@ export type CaliforniaExportCandidate = {
     weekStart: string;
     weekEnd: string;
   };
+  revision: number;
   fingerprint: string;
   countsByStore: Record<string, number>;
   shiftCount: number;
+  scheduledMinutes: number;
   issues: CaliforniaExportIssue[];
   payload?: LegacyCaliforniaSchedulePayload;
 };
@@ -396,9 +398,14 @@ export function extractCaliforniaLegacyExport(
       weekStart: target.weekStart,
       weekEnd: target.weekEnd,
     },
+    revision: snapshot.revision,
     fingerprint,
     countsByStore,
     shiftCount: schedule.length,
+    scheduledMinutes: snapshot.shifts.reduce(
+      (total, shift) => total + shift.minutes,
+      0,
+    ),
     issues: uniqueIssues,
     ...(uniqueIssues.length ? {} : { payload }),
   };
@@ -426,15 +433,17 @@ export function finalizeCaliforniaReportingExports(
     weekStart: target.weekStart,
     generatedAt: new Date().toISOString(),
     results: requested.map((storeId): CaliforniaReportingExportResult => {
-      const candidate = extractCaliforniaLegacyExport(
-        grid,
-        employees,
-        target,
-        [storeId],
-      );
+      const candidate = extractCaliforniaLegacyExport(grid, employees, target, [
+        storeId,
+      ]);
       return candidate.ready && candidate.payload
         ? { storeId, status: "ready", issues: [], export: candidate }
-        : { storeId, status: "blocked", issues: candidate.issues, export: null };
+        : {
+            storeId,
+            status: "blocked",
+            issues: candidate.issues,
+            export: null,
+          };
     }),
   };
 }

@@ -12,6 +12,18 @@ const json = (schema: Record<string, unknown>) => ({
   "application/json": { schema },
 });
 const object = { type: "object" };
+const directorySourceResponse = {
+  type: "object",
+  required: ["source", "observedAt", "acceptedAt", "rowCount", "storeCount"],
+  additionalProperties: false,
+  properties: {
+    source: { type: "string" },
+    observedAt: { type: "string", format: "date-time" },
+    acceptedAt: { type: "string", format: "date-time" },
+    rowCount: { type: "integer", minimum: 1 },
+    storeCount: { type: "integer", minimum: 1 },
+  },
+};
 const errors = Object.fromEntries(
   [400, 401, 403, 404, 409, 413, 415, 429, 500, 502, 503].map((code) => [
     code,
@@ -397,6 +409,7 @@ endpoint(
         "workbookId",
         "weekStart",
         "generatedAt",
+        "directory",
         "results",
       ],
       properties: {
@@ -404,6 +417,7 @@ endpoint(
         workbookId: { type: "string" },
         weekStart: { type: "string", format: "date" },
         generatedAt: { type: "string", format: "date-time" },
+        directory: directorySourceResponse,
         results: {
           type: "array",
           items: {
@@ -440,7 +454,30 @@ endpoint(
       },
     },
   },
-  { reportingToken: true, response: { type: "object" } },
+  {
+    reportingToken: true,
+    response: {
+      type: "object",
+      required: [
+        "version",
+        "workbookId",
+        "weekStart",
+        "generatedAt",
+        "directory",
+        "target",
+        "results",
+      ],
+      properties: {
+        version: { type: "integer", const: 1 },
+        workbookId: { type: "string" },
+        weekStart: { type: "string", format: "date" },
+        generatedAt: { type: "string", format: "date-time" },
+        directory: directorySourceResponse,
+        target: { type: "object" },
+        results: { type: "array", items: { type: "object" } },
+      },
+    },
+  },
 );
 endpoint(
   "/reporting/california-exports/finalize",
@@ -461,7 +498,58 @@ endpoint(
       },
     },
   },
-  { reportingToken: true, response: { type: "object" } },
+  {
+    reportingToken: true,
+    response: {
+      type: "object",
+      required: [
+        "version",
+        "state",
+        "brand",
+        "weekStart",
+        "generatedAt",
+        "directory",
+        "results",
+      ],
+      properties: {
+        version: { type: "integer", const: 1 },
+        state: { type: "string", const: "california" },
+        brand: { type: "string", const: "jamba" },
+        weekStart: { type: "string", format: "date" },
+        generatedAt: { type: "string", format: "date-time" },
+        directory: directorySourceResponse,
+        results: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["storeId", "status", "issues", "export"],
+            properties: {
+              storeId: { type: "string" },
+              status: { type: "string", enum: ["ready", "blocked"] },
+              issues: { type: "array", items: { type: "object" } },
+              export: {
+                anyOf: [
+                  {
+                    type: "object",
+                    properties: {
+                      revision: { type: "integer", minimum: 1 },
+                      fingerprint: {
+                        type: "string",
+                        pattern: "^[a-f0-9]{64}$",
+                      },
+                      shiftCount: { type: "integer", minimum: 0 },
+                      scheduledMinutes: { type: "integer", minimum: 0 },
+                    },
+                  },
+                  { type: "null" },
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+  },
 );
 endpoint(
   "/schedules/california/legacy-export",

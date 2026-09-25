@@ -214,6 +214,7 @@ async function readCompletedGapRoster(
   }
   const storeMap = storeCodeMap(enabled);
   const rows = new Map<string, Roster["rows"][number]>();
+  const coverageGaps: string[] = [];
   const completedDates = [...requiredByDate.keys()].sort();
   await Promise.all(
     completedDates.map(async (date) => {
@@ -268,14 +269,18 @@ async function readCompletedGapRoster(
         }
       }
       const missing = [...required].filter((id) => !found.has(id));
-      if (missing.length)
-        throw new Problem(
-          502,
-          `Clock-in coverage for ${date} is missing enabled stores. Last successful roster is retained.`,
-        );
+      // The daily report omits a store-day when the upstream source has no
+      // document for that location. This feed supplements the complete Google
+      // baseline, so retain the baseline identities and expose the gap in the
+      // accepted source evidence instead of rejecting every other store-day.
+      coverageGaps.push(...missing.map((storeId) => `${date}:${storeId}`));
     }),
   );
-  return { dates: completedDates, rows: [...rows.values()] };
+  return {
+    dates: completedDates,
+    rows: [...rows.values()],
+    coverageGaps: coverageGaps.sort(),
+  };
 }
 
 export async function readCurrentDayRoster(
@@ -479,9 +484,12 @@ export async function readRosterActivity(
     .filter(Boolean)
     .map((date) => `${date.slice(4, 8)}${date.slice(0, 4)}`);
   const dates = [...completed.dates, ...currentDates].filter(Boolean).sort();
+  const coverage = completed.coverageGaps.length
+    ? `partial-${completed.coverageGaps.length}-store-days`
+    : "complete";
   return {
     businessDate: current.businessDate,
-    source: `clock-in-gap:${dates[0] || "none"}-${dates.at(-1) || "none"}+current-sales-clock-ins`,
+    source: `clock-in-gap:${dates[0] || "none"}-${dates.at(-1) || "none"}:${coverage}+current-sales-clock-ins`,
     rows: [...rows.values()],
   };
 }

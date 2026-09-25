@@ -254,24 +254,22 @@ test("fills completed gap dates from normalized clock-ins before current activit
   assert.match(result.source, /clock-in-gap:20260914-20260917/);
 });
 
-test("rejects a completed gap date missing an enabled store", async () => {
-  await assert.rejects(
-    readRosterActivity(
-      [stores[0]],
-      (async (url) => {
-        const value = String(url);
-        if (value.startsWith(dailyReportBaseUrl))
-          return Response.json({
-            business_date: new URL(value).searchParams.get("date"),
-            stores: [],
-          });
-        if (value === quLocationsUrl) return Response.json([]);
-        return Response.json([]);
-      }) as typeof fetch,
-      new Date("2026-09-17T17:00:00.000Z"),
-    ),
-    /missing enabled stores/,
+test("retains the complete baseline contract and marks missing supplemental store-days", async () => {
+  const result = await readRosterActivity(
+    [stores[2]],
+    (async (url) => {
+      const value = String(url);
+      if (value.startsWith(dailyReportBaseUrl))
+        return Response.json({
+          business_date: new URL(value).searchParams.get("date"),
+          stores: [],
+        });
+      return Response.json([]);
+    }) as typeof fetch,
+    new Date("2026-09-17T17:00:00.000Z"),
   );
+  assert.equal(result.rows.length, 0);
+  assert.match(result.source, /partial-3-store-days/);
 });
 
 test("rejects unavailable or malformed current-day responses", async () => {
